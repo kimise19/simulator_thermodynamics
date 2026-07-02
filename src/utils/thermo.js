@@ -1,0 +1,341 @@
+// CONSTANTS
+export const R = 8.314462618; // J / (mol * K)
+
+// UNIT CONVERSIONS
+export const convertPressure = {
+  toSI: (val, unit) => {
+    switch (unit) {
+      case 'kPa': return val * 1000;
+      case 'atm': return val * 101325;
+      case 'Pa':
+      default: return val;
+    }
+  },
+  fromSI: (val, unit) => {
+    switch (unit) {
+      case 'kPa': return val / 1000;
+      case 'atm': return val / 101325;
+      case 'Pa':
+      default: return val;
+    }
+  }
+};
+
+export const convertVolume = {
+  toSI: (val, unit) => {
+    switch (unit) {
+      case 'L': return val / 1000;
+      case 'm3':
+      default: return val;
+    }
+  },
+  fromSI: (val, unit) => {
+    switch (unit) {
+      case 'L': return val * 1000;
+      case 'm3':
+      default: return val;
+    }
+  }
+};
+
+export const convertTemp = {
+  toSI: (val, unit) => {
+    switch (unit) {
+      case 'C': return val + 273.15;
+      case 'K':
+      default: return val;
+    }
+  },
+  fromSI: (val, unit) => {
+    switch (unit) {
+      case 'C': return val - 273.15;
+      case 'K':
+      default: return val;
+    }
+  }
+};
+
+// PHYSICS CALCULATOR ENGINE
+export function calculateSimulation(process, inputs) {
+  // Extract inputs in SI
+  const n = parseFloat(inputs.n);
+  const gamma = parseFloat(inputs.gamma) || 1.4;
+  
+  // Specific capacity calculations based on gamma
+  // Cp - Cv = R  and Cp / Cv = gamma
+  // Cv = R / (gamma - 1)
+  // Cp = gamma * Cv
+  const Cv = R / (gamma - 1);
+  const Cp = gamma * Cv;
+
+  let Pi = 0, Pf = 0, Vi = 0, Vf = 0, Ti = 0, Tf = 0;
+  let W = 0, Q = 0, deltaU = 0;
+  let mathSteps = [];
+  let explanation = "";
+
+  switch (process) {
+    case 'isotermico': {
+      Ti = convertTemp.toSI(parseFloat(inputs.Ti), inputs.unitT);
+      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+      Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+      Tf = Ti;
+
+      // Ideal gas law for pressures
+      Pi = (n * R * Ti) / Vi;
+      Pf = (n * R * Tf) / Vf;
+
+      // Work done: W = n R T ln(Vf/Vi)
+      W = n * R * Ti * Math.log(Vf / Vi);
+      deltaU = 0; // T is constant, so U is constant
+      Q = W; // Q = deltaU + W => Q = W
+
+      // Explanations & steps
+      mathSteps = [
+        {
+          title: "1. Aplicación de la Ley de los Gases Ideales",
+          desc: "Calculamos las presiones inicial y final del sistema utilizando P = nRT/V.",
+          formula: `P_i = \\frac{n R T_i}{V_i} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Vi.toFixed(4)}} = ${Pi.toFixed(2)} \\text{ Pa}`
+        },
+        {
+          title: "2. Presión Final",
+          desc: "Al ser un proceso isotérmico, la temperatura no varía. Calculamos la presión final del estado B.",
+          formula: `P_f = \\frac{n R T_f}{V_f} = \\frac{${n} \\cdot 8.314 \\cdot ${Tf.toFixed(2)}}{${Vf.toFixed(4)}} = ${Pf.toFixed(2)} \\text{ Pa}`
+        },
+        {
+          title: "3. Trabajo Realizado (W)",
+          desc: "El trabajo se calcula integrando la presión a lo largo del cambio de volumen.",
+          formula: `W = n R T \\ln\\left(\\frac{V_f}{V_i}\\right) = ${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)} \\cdot \\ln\\left(\\frac{${Vf.toFixed(4)}}{${Vi.toFixed(4)}}\\right) = ${W.toFixed(2)} \\text{ J}`
+        },
+        {
+          title: "4. Cambio de Energía Interna (ΔU)",
+          desc: "Puesto que la energía interna de un gas ideal depende únicamente de su temperatura y ésta permanece constante:",
+          formula: `\\Delta U = n C_v \\Delta T = n C_v (0) = 0 \\text{ J}`
+        },
+        {
+          title: "5. Calor Transferido (Q)",
+          desc: "De acuerdo con la Primera Ley de la Termodinámica (ΔU = Q - W), deducimos el calor:",
+          formula: `Q = \\Delta U + W = 0 + ${W.toFixed(2)} = ${Q.toFixed(2)} \\text{ J}`
+        }
+      ];
+
+      explanation = `En este proceso isotérmico (temperatura constante a ${convertTemp.fromSI(Ti, inputs.unitT).toFixed(1)}°${inputs.unitT}), ` +
+        `el volumen se expande/comprime de ${convertVolume.fromSI(Vi, inputs.unitV).toFixed(3)} ${inputs.unitV} a ${convertVolume.fromSI(Vf, inputs.unitV).toFixed(3)} ${inputs.unitV}. ` +
+        `Todo el calor transferido al sistema (${Q.toFixed(1)} J) se convierte íntegramente en trabajo mecánico realizado por el gas, manteniendo la energía interna del sistema sin cambios (ΔU = 0).`;
+      break;
+    }
+
+    case 'isobarico': {
+      Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+      Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+      Pf = Pi;
+
+      // Ideal gas law for temperatures
+      Ti = (Pi * Vi) / (n * R);
+      Tf = (Pf * Vf) / (n * R);
+
+      // Work done: W = P * deltaV
+      W = Pi * (Vf - Vi);
+      // deltaU = n * Cv * deltaT
+      deltaU = n * Cv * (Tf - Ti);
+      // Q = n * Cp * deltaT = deltaU + W
+      Q = deltaU + W;
+
+      mathSteps = [
+        {
+          title: "1. Cálculo de Temperaturas Inicial y Final",
+          desc: "Determinamos las temperaturas en base a la ecuación del gas ideal T = PV / (nR).",
+          formula: `T_i = \\frac{P_i V_i}{n R} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)}}{${n} \\cdot 8.314} = ${Ti.toFixed(2)} \\text{ K}`
+        },
+        {
+          title: "2. Temperatura Final (Tf)",
+          desc: "De igual manera, calculamos la temperatura del estado final B.",
+          formula: `T_f = \\frac{P_f V_f}{n R} = \\frac{${Pf.toFixed(0)} \\cdot ${Vf.toFixed(4)}}{${n} \\cdot 8.314} = ${Tf.toFixed(2)} \\text{ K}`
+        },
+        {
+          title: "3. Trabajo Mecánico (W)",
+          desc: "Al ser la presión constante, el trabajo realizado es simplemente el producto de la presión por la variación de volumen.",
+          formula: `W = P \\cdot (V_f - V_i) = ${Pi.toFixed(0)} \\cdot (${Vf.toFixed(4)} - ${Vi.toFixed(4)}) = ${W.toFixed(2)} \\text{ J}`
+        },
+        {
+          title: "4. Variación de Energía Interna (ΔU)",
+          desc: "Calculamos el cambio de energía interna utilizando Cv = R / (γ - 1).",
+          formula: `\\Delta U = n C_v \\Delta T = ${n} \\cdot ${Cv.toFixed(2)} \\cdot (${Tf.toFixed(2)} - ${Ti.toFixed(2)}) = ${deltaU.toFixed(2)} \\text{ J}`
+        },
+        {
+          title: "5. Calor Transferido (Q)",
+          desc: "El calor transferido a presión constante involucra Cp = γ * Cv o mediante la 1ra ley:",
+          formula: `Q = \\Delta U + W = ${deltaU.toFixed(2)} + ${W.toFixed(2)} = ${Q.toFixed(2)} \\text{ J}`
+        }
+      ];
+
+      explanation = `En un proceso isobárico (presión constante a ${convertPressure.fromSI(Pi, inputs.unitP).toFixed(1)} ${inputs.unitP}), ` +
+        `el gas se expande/comprime, realizando un trabajo de ${W.toFixed(1)} J. Al expandirse, la temperatura aumenta de ` +
+        `${convertTemp.fromSI(Ti, inputs.unitT).toFixed(1)}°${inputs.unitT} a ${convertTemp.fromSI(Tf, inputs.unitT).toFixed(1)}°${inputs.unitT}. ` +
+        `El sistema absorbe/libera un calor de ${Q.toFixed(1)} J, del cual una fracción se emplea en realizar trabajo externo y el resto incrementa la energía interna (ΔU = ${deltaU.toFixed(1)} J).`;
+      break;
+    }
+
+    case 'isocorico': {
+      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+      Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+      Pf = convertPressure.toSI(parseFloat(inputs.Pf), inputs.unitP);
+      Vf = Vi;
+
+      // Ideal gas law for temperatures
+      Ti = (Pi * Vi) / (n * R);
+      Tf = (Pf * Vf) / (n * R);
+
+      // No volume change means W = 0
+      W = 0;
+      deltaU = n * Cv * (Tf - Ti);
+      Q = deltaU; // Q = deltaU + W => Q = deltaU
+
+      mathSteps = [
+        {
+          title: "1. Cálculo de Temperaturas de Estado",
+          desc: "Calculamos la temperatura inicial en base a la ley de gases ideales:",
+          formula: `T_i = \\frac{P_i V}{n R} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)}}{${n} \\cdot 8.314} = ${Ti.toFixed(2)} \\text{ K}`
+        },
+        {
+          title: "2. Temperatura Final",
+          desc: "Determinamos la temperatura final alcanzada:",
+          formula: `T_f = \\frac{P_f V}{n R} = \\frac{${Pf.toFixed(0)} \\cdot ${Vf.toFixed(4)}}{${n} \\cdot 8.314} = ${Tf.toFixed(2)} \\text{ K}`
+        },
+        {
+          title: "3. Trabajo Realizado (W)",
+          desc: "Como el volumen es constante (isocórico), no hay desplazamiento, por ende el trabajo es nulo.",
+          formula: `W = P \\cdot \\Delta V = 0 \\text{ J}`
+        },
+        {
+          title: "4. Variación de Energía Interna (ΔU) y Calor (Q)",
+          desc: "Todo el calor transferido va directamente a cambiar la energía interna del gas ya que W = 0.",
+          formula: `\\Delta U = Q = n C_v (T_f - T_i) = ${n} \\cdot ${Cv.toFixed(2)} \\cdot (${Tf.toFixed(2)} - ${Ti.toFixed(2)}) = ${deltaU.toFixed(2)} \\text{ J}`
+        }
+      ];
+
+      explanation = `En este proceso isocórico (volumen constante a ${convertVolume.fromSI(Vi, inputs.unitV).toFixed(3)} ${inputs.unitV}), ` +
+        `el gas no realiza trabajo mecánico (W = 0 J). Por lo tanto, todo el calor absorbido o liberado por el sistema ` +
+        `(${Q.toFixed(1)} J) se traduce directamente en un cambio proporcional en la energía interna (ΔU = ${deltaU.toFixed(1)} J) ` +
+        `y en una variación de la presión final a ${convertPressure.fromSI(Pf, inputs.unitP).toFixed(1)} ${inputs.unitP}.`;
+      break;
+    }
+
+    case 'adiabatico': {
+      Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+      Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+
+      // Adiabatic equation: Pi * Vi^gamma = Pf * Vf^gamma => Pf = Pi * (Vi/Vf)^gamma
+      Pf = Pi * Math.pow(Vi / Vf, gamma);
+
+      // Temperatures
+      Ti = (Pi * Vi) / (n * R);
+      Tf = (Pf * Vf) / (n * R);
+
+      // Adiabatic means no heat transfer
+      Q = 0;
+      // W = (Pi * Vi - Pf * Vf) / (gamma - 1)
+      W = (Pi * Vi - Pf * Vf) / (gamma - 1);
+      // deltaU = -W
+      deltaU = -W;
+
+      mathSteps = [
+        {
+          title: "1. Cálculo de Presión Final (Pf)",
+          desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar P_f.",
+          formula: `P_f = P_i \\left(\\frac{V_i}{V_f}\\right)^\\gamma = ${Pi.toFixed(0)} \\cdot \\left(\\frac{${Vi.toFixed(4)}}{${Vf.toFixed(4)}}\\right)^{${gamma}} = ${Pf.toFixed(2)} \\text{ Pa}`
+        },
+        {
+          title: "2. Cálculo de Temperaturas Inicial y Final",
+          desc: "Calculamos las temperaturas en Kelvin empleando PV = nRT.",
+          formula: `T_i = \\frac{P_i V_i}{n R} = ${Ti.toFixed(2)} \\text{ K}, \\quad T_f = \\frac{P_f V_f}{n R} = ${Tf.toFixed(2)} \\text{ K}`
+        },
+        {
+          title: "3. Calor Transferido (Q)",
+          desc: "Por definición de proceso adiabático, el sistema está térmicamente aislado del exterior:",
+          formula: `Q = 0 \\text{ J}`
+        },
+        {
+          title: "4. Trabajo Realizado (W)",
+          desc: "El trabajo se realiza a expensas de la energía interna del propio gas:",
+          formula: `W = \\frac{P_i V_i - P_f V_f}{\\gamma - 1} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)} - ${Pf.toFixed(0)} \\cdot ${Vf.toFixed(4)}}{${gamma} - 1} = ${W.toFixed(2)} \\text{ J}`
+        },
+        {
+          title: "5. Variación de Energía Interna (ΔU)",
+          desc: "De acuerdo con la Primera Ley, ΔU = Q - W, al ser Q = 0:",
+          formula: `\\Delta U = -W = -(${W.toFixed(2)}) = ${deltaU.toFixed(2)} \\text{ J}`
+        }
+      ];
+
+      explanation = `En un proceso adiabático, el sistema no intercambia calor con el entorno (Q = 0 J). ` +
+        `Al expandirse el volumen a ${convertVolume.fromSI(Vf, inputs.unitV).toFixed(3)} ${inputs.unitV}, el gas realiza un trabajo mecánico de ` +
+        `${W.toFixed(1)} J a costa de su propia energía interna (ΔU = ${deltaU.toFixed(1)} J), ` +
+        `lo que produce un enfriamiento del gas de ${convertTemp.fromSI(Ti, inputs.unitT).toFixed(1)}°${inputs.unitT} a ${convertTemp.fromSI(Tf, inputs.unitT).toFixed(1)}°${inputs.unitT}.`;
+      break;
+    }
+  }
+
+  return {
+    Pi, Pf, Vi, Vf, Ti, Tf,
+    W, Q, deltaU,
+    mathSteps,
+    explanation
+  };
+}
+
+// PLOT POINTS GENERATOR
+export function generateProcessCurve(process, simData, pointsCount = 40) {
+  const { Vi, Vf, Pi, Pf, Ti, Tf, gamma } = simData;
+  const points = [];
+  
+  const minV = Math.min(Vi, Vf);
+  const maxV = Math.max(Vi, Vf);
+  const step = (maxV - minV) / (pointsCount - 1);
+
+  if (process === 'isocorico') {
+    // For isochoric, it is a vertical line. Chart.js needs points along pressure
+    const minP = Math.min(Pi, Pf);
+    const maxP = Math.max(Pi, Pf);
+    const pStep = (maxP - minP) / (pointsCount - 1);
+    for (let i = 0; i < pointsCount; i++) {
+      points.push({
+        x: Vi,
+        y: minP + i * pStep
+      });
+    }
+  } else if (process === 'isobarico') {
+    // Horizontal line
+    for (let i = 0; i < pointsCount; i++) {
+      points.push({
+        x: minV + i * step,
+        y: Pi
+      });
+    }
+  } else if (process === 'isotermico') {
+    // Hyperbola P = nRT/V
+    // Let's use the average nRT to draw the curve
+    const nRT = Pi * Vi; // Since Ti = Tf, nRT = Pi * Vi
+    
+    // We want to generate points ordered from left to right (increasing volume)
+    for (let i = 0; i < pointsCount; i++) {
+      const v = minV + i * step;
+      points.push({
+        x: v,
+        y: nRT / v
+      });
+    }
+  } else if (process === 'adiabatico') {
+    // P = C / V^gamma where C = Pi * Vi^gamma
+    const C = Pi * Math.pow(Vi, gamma);
+    for (let i = 0; i < pointsCount; i++) {
+      const v = minV + i * step;
+      points.push({
+        x: v,
+        y: C / Math.pow(v, gamma)
+      });
+    }
+  }
+
+  return points;
+}
