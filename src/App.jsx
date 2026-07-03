@@ -977,9 +977,16 @@ export default function App() {
               {/* Output variables cards grid */}
               <section className="results-grid">
                 <div className="result-card work">
-                  <span className="result-label">Trabajo (W)</span>
+                  <span className="result-label">Trabajo de Volumen (W_vol)</span>
                   <span className="result-value">
-                    {results.W.toFixed(1)}
+                    {results.W_vol.toFixed(1)}
+                  </span>
+                  <span className="result-unit">Joules (J)</span>
+                </div>
+                <div className="result-card work">
+                  <span className="result-label">Trabajo de Presión (W_pres)</span>
+                  <span className="result-value">
+                    {results.W_pres.toFixed(1)}
                   </span>
                   <span className="result-unit">Joules (J)</span>
                 </div>
@@ -994,6 +1001,13 @@ export default function App() {
                   <span className="result-label">Energía Interna (ΔU)</span>
                   <span className="result-value">
                     {results.deltaU.toFixed(1)}
+                  </span>
+                  <span className="result-unit">Joules (J)</span>
+                </div>
+                <div className="result-card energy">
+                  <span className="result-label">Entalpía (ΔH)</span>
+                  <span className="result-value">
+                    {results.deltaH.toFixed(1)}
                   </span>
                   <span className="result-unit">Joules (J)</span>
                 </div>
@@ -1214,11 +1228,18 @@ export default function App() {
             </div>
 
             {/* First law calculations summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '25px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '15px' }}>
               <div style={{ borderLeft: '4px solid #006935', padding: '10px', backgroundColor: '#F3F4F6' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo Realizado (W)</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.W.toFixed(1)} J</div>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Volumen (W_vol)</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.W_vol.toFixed(1)} J</div>
               </div>
+              <div style={{ borderLeft: '4px solid #006935', padding: '10px', backgroundColor: '#F3F4F6' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Presión (W_pres)</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.W_pres.toFixed(1)} J</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '25px' }}>
               <div style={{ borderLeft: '4px solid #EA580C', padding: '10px', backgroundColor: '#F3F4F6' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Calor Transferido (Q)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.Q.toFixed(1)} J</div>
@@ -1226,6 +1247,10 @@ export default function App() {
               <div style={{ borderLeft: '4px solid #D4AF37', padding: '10px', backgroundColor: '#F3F4F6' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Cambio Energía (ΔU)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.deltaU.toFixed(1)} J</div>
+              </div>
+              <div style={{ borderLeft: '4px solid #D4AF37', padding: '10px', backgroundColor: '#F3F4F6' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Entalpía (ΔH)</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.deltaH.toFixed(1)} J</div>
               </div>
             </div>
 
