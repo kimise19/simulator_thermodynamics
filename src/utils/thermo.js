@@ -113,7 +113,7 @@ export function calculateSimulation(process, inputs) {
         {
           title: "4. Trabajo de Presión (W_pres)",
           desc: "El trabajo de presión (flujo/técnico) se calcula integrando -V dP. Para un gas ideal isotérmico, equivale al de volumen.",
-          formula: `W_{pres} = -\\int V dP = n R T \\ln\\left(\\frac{V_f}{V_i}\\right) = ${W_pres.toFixed(2)} \\text{ J}`
+          formula: `W_{pres} = -\\int V dP = -n R T \\ln\\left(\\frac{P_f}{P_i}\\right) = ${W_pres.toFixed(2)} \\text{ J}`
         },
         {
           title: "5. Cambio de Energía Interna (ΔU)",
