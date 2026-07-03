@@ -43,71 +43,26 @@ export default function CoverPage({
           <div className="metadata-grid">
             <div className="metadata-item">
               <label>Integrantes</label>
-              <input 
-                type="text" 
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                placeholder="Integrantes del Grupo"
-                className="input-field"
-                style={{ 
-                  borderBottom: '2px solid var(--border-color)', 
-                  borderTop: 'none', 
-                  borderLeft: 'none', 
-                  borderRight: 'none', 
-                  borderRadius: 0,
-                  padding: '4px 0',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  backgroundColor: 'transparent'
-                }}
-              />
+              <span style={{ display: 'block', paddingTop: '4px', fontSize: '1rem', fontWeight: 600 }}>
+                Castro Mathias, Mullo Martín, Tufiño Andrea, Villarruel Leonel
+              </span>
             </div>
             <div className="metadata-item">
               <label>Docente</label>
-              <input 
-                type="text" 
-                value={professorName}
-                onChange={(e) => setProfessorName(e.target.value)}
-                placeholder="Nombre del Docente"
-                className="input-field"
-                style={{ 
-                  borderBottom: '2px solid var(--border-color)', 
-                  borderTop: 'none', 
-                  borderLeft: 'none', 
-                  borderRight: 'none', 
-                  borderRadius: 0,
-                  padding: '4px 0',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  backgroundColor: 'transparent'
-                }}
-              />
-            </div>
-            <div className="metadata-item">
-              <label>Carrera</label>
-              <input 
-                type="text" 
-                value={careerName}
-                onChange={(e) => setCareerName(e.target.value)}
-                placeholder="Carrera Universitaria"
-                className="input-field"
-                style={{ 
-                  borderBottom: '2px solid var(--border-color)', 
-                  borderTop: 'none', 
-                  borderLeft: 'none', 
-                  borderRight: 'none', 
-                  borderRadius: 0,
-                  padding: '4px 0',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  backgroundColor: 'transparent'
-                }}
-              />
+              <span style={{ display: 'block', paddingTop: '4px', fontSize: '1rem', fontWeight: 600 }}>
+                Ing. Raquel Zúñiga MsC.
+              </span>
             </div>
             <div className="metadata-item">
               <label>Asignatura</label>
               <span style={{ display: 'block', paddingTop: '4px', fontSize: '1rem', fontWeight: 600 }}>
-                Física de la Termodinámica
+                Físico-química
+              </span>
+            </div>
+            <div className="metadata-item">
+              <label>Carrera</label>
+              <span style={{ display: 'block', paddingTop: '4px', fontSize: '1rem', fontWeight: 600 }}>
+                Ingeniería en Biotecnología
               </span>
             </div>
           </div>

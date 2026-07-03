@@ -133,7 +133,7 @@ export default function App() {
     const gammaVal = parseFloat(gamma);
 
     if (isNaN(nVal) || nVal <= 0) newErrors.n = "Los moles deben ser > 0";
-    if (process === 'adiabatico' || process === 'isobarico' || process === 'isocorico') {
+    if (process === 'adiabatico') {
       if (isNaN(gammaVal) || gammaVal <= 1 || gammaVal > 2) {
         newErrors.gamma = "γ debe estar entre 1.01 y 2.0";
       }
@@ -330,10 +330,24 @@ export default function App() {
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = 210; // A4 size
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const imgWidth = 210; // A4 size width in mm
+      const pageHeight = 295; // A4 page height in mm (slightly less than 297 to prevent extra blank page)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // Page 1
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Page 2 and subsequent pages
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`Reporte_Termodinamica_ESPE_${process}.pdf`);
     } catch (e) {
       console.error(e);
@@ -500,7 +514,7 @@ export default function App() {
           Integrantes:
         </span>
         <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-          Castro Mathias, Mullo Martín, Tufiño Andrea, Villaruel Leonel
+          Castro Mathias, Mullo Martín, Tufiño Andrea, Villarruel Leonel
         </span>
       </section>
 
@@ -511,7 +525,7 @@ export default function App() {
           Establece que la energía no se crea ni se destruye, sino que se transforma. Para un sistema cerrado, 
           cualquier transferencia de calor (<MathFormula formula="Q" />) o trabajo mecánico (<MathFormula formula="W" />) 
           con el entorno produce una variación en la energía interna (<MathFormula formula="\Delta U" />) del sistema, 
-          expresada como: <MathFormula formula="\Delta U = Q - W" /> (o <MathFormula formula="Q = \Delta U + W" /> según la convención de signos IUPAC).
+          expresada como: <MathFormula formula="\Delta U = Q + W" />.
         </p>
       </section>
 
@@ -613,7 +627,7 @@ export default function App() {
               </div>
 
               {/* Gamma (γ) */}
-              {(process === 'adiabatico' || process === 'isobarico' || process === 'isocorico') && (
+              {process === 'adiabatico' && (
                 <div className="form-group">
                   <div className="label-container">
                     <label>Coeficiente Adiabático (γ)</label>
@@ -1160,10 +1174,10 @@ export default function App() {
           <h2 style={{ fontSize: '16px', margin: '0 0 12px 0', color: '#006935', borderBottom: '1px solid #D9E1E8', paddingBottom: '6px' }}>Reporte de Laboratorio Virtual</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
             <div><strong>Proyecto:</strong> Simulador de la Primera Ley de la Termodinámica</div>
-            <div><strong>Asignatura:</strong> Física de la Termodinámica</div>
-            <div><strong>Integrantes:</strong> {studentName || 'Castro Mathias, Mullo Martín, Tufiño Andrea, Villaruel Leonel'}</div>
-            <div><strong>Docente:</strong> {professorName || 'Ing. Carlos Rodriguez'}</div>
-            <div><strong>Carrera:</strong> {careerName || 'Ingeniería Mecánica'}</div>
+            <div><strong>Asignatura:</strong> Físico-química</div>
+            <div><strong>Integrantes:</strong> Castro Mathias, Mullo Martín, Tufiño Andrea, Villarruel Leonel</div>
+            <div><strong>Docente:</strong> Ing. Raquel Zúñiga MsC.</div>
+            <div><strong>Carrera:</strong> Ingeniería en Biotecnología</div>
             <div><strong>Fecha:</strong> {new Date().toLocaleDateString()}</div>
           </div>
         </div>
@@ -1177,7 +1191,7 @@ export default function App() {
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Moles (n)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{n} mol</td></tr>
-                    {(process === 'adiabatico' || process === 'isobarico' || process === 'isocorico') && (
+                    {process === 'adiabatico' && (
                       <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Coef. Adiabático (γ)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{gamma}</td></tr>
                     )}
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Presión Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertPressure.fromSI(results.Pi, unitP).toFixed(2)} {unitP}</td></tr>
@@ -1228,8 +1242,8 @@ export default function App() {
                 <div key={idx} style={{ marginBottom: '12px' }}>
                   <strong style={{ color: '#006935', fontSize: '12px' }}>{step.title}</strong>
                   <p style={{ margin: '2px 0 6px 0', color: '#6B7280' }}>{step.desc}</p>
-                  <div style={{ padding: '10px', backgroundColor: '#F9FAFB', borderRadius: '6px', textAlign: 'center', fontFamily: 'Courier, monospace' }}>
-                    {step.formula}
+                  <div style={{ padding: '10px', backgroundColor: '#F9FAFB', borderRadius: '6px', textAlign: 'center' }}>
+                    <MathFormula formula={step.formula} displayMode={true} />
                   </div>
                 </div>
               ))}
