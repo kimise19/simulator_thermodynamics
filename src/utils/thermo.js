@@ -191,7 +191,7 @@ export function calculateSimulation(process, inputs) {
         },
         {
           title: "5. Variación de Energía Interna (ΔU)",
-          desc: "Calculamos el cambio de energía interna utilizando Cv = R / (γ - 1).",
+          desc: `Calculamos el cambio de energía interna utilizando la capacidad calorífica C_v (${gasType === 'monoatomico' ? '3/2 R' : '5/2 R'}).`,
           formula: `\\Delta U = n C_v \\Delta T = ${n} \\cdot ${Cv.toFixed(2)} \\cdot (${Tf.toFixed(2)} - ${Ti.toFixed(2)}) = ${deltaU.toFixed(2)} \\text{ J}`
         },
         {
