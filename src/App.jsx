@@ -45,6 +45,7 @@ export default function App() {
   // Simulation variables state
   const [process, setProcess] = useState('isotermico');
   const [n, setN] = useState('1.0');
+  const [gasType, setGasType] = useState('diatomico');
   const [gamma, setGamma] = useState('1.4');
   
   // Dynamic inputs based on selected process
@@ -122,7 +123,7 @@ export default function App() {
       setPi('120');
       setVi('10');
       setVf('22');
-      setGamma('1.4');
+      setGamma(gasType === 'monoatomico' ? '1.67' : '1.4');
     }
   };
 
@@ -130,14 +131,8 @@ export default function App() {
   const validate = () => {
     const newErrors = {};
     const nVal = parseFloat(n);
-    const gammaVal = parseFloat(gamma);
 
     if (isNaN(nVal) || nVal <= 0) newErrors.n = "Los moles deben ser > 0";
-    if (process === 'adiabatico') {
-      if (isNaN(gammaVal) || gammaVal <= 1 || gammaVal > 2) {
-        newErrors.gamma = "γ debe estar entre 1.01 y 2.0";
-      }
-    }
 
     if (process === 'isotermico') {
       const TiVal = parseFloat(Ti);
@@ -188,7 +183,7 @@ export default function App() {
     // Dry run simulation to test physical realism
     if (Object.keys(newErrors).length === 0) {
       try {
-        const inputs = { n, gamma, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
+        const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
         const simResults = calculateSimulation(process, inputs);
         const tempLimitMin = 10; // K
         const tempLimitMax = 10000; // K
@@ -215,7 +210,7 @@ export default function App() {
     if (!validate()) return;
 
     // Collect all inputs
-    const inputs = { n, gamma, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
+    const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
 
     // Calculate thermodynamic results
     const simResults = calculateSimulation(process, inputs);
@@ -263,6 +258,7 @@ export default function App() {
             W: simResults.W,
             Q: simResults.Q,
             deltaU: simResults.deltaU,
+            deltaS: simResults.deltaS,
             Pf: convertPressure.fromSI(simResults.Pf, unitP),
             Vf: convertVolume.fromSI(simResults.Vf, unitV),
             Tf: convertTemp.fromSI(simResults.Tf, unitT)
@@ -287,7 +283,9 @@ export default function App() {
   const loadHistoryItem = (item) => {
     setProcess(item.process);
     setN(item.inputs.n);
-    setGamma(item.inputs.gamma);
+    const loadedGasType = item.inputs.gasType || (parseFloat(item.inputs.gamma) > 1.5 ? 'monoatomico' : 'diatomico');
+    setGasType(loadedGasType);
+    setGamma(item.inputs.gamma || (loadedGasType === 'monoatomico' ? '1.67' : '1.4'));
     setTi(item.inputs.Ti);
     setPi(item.inputs.Pi);
     setPf(item.inputs.Pf);
@@ -298,7 +296,12 @@ export default function App() {
     setUnitT(item.inputs.unitT);
 
     // Instant calculations loading
-    const recalculated = calculateSimulation(item.process, item.inputs);
+    const updatedInputs = {
+      ...item.inputs,
+      gasType: loadedGasType,
+      gamma: item.inputs.gamma || (loadedGasType === 'monoatomico' ? 5/3 : 7/5)
+    };
+    const recalculated = calculateSimulation(item.process, updatedInputs);
     setResults(recalculated);
   };
 
@@ -363,7 +366,7 @@ export default function App() {
   if (results || isSimulating) {
     // Current simulation context to show
     const currentSim = results 
-      ? { ...results, gamma: parseFloat(gamma) }
+      ? { ...results, gamma: gasType === 'monoatomico' ? 5/3 : 7/5 }
       : {
           Vi: convertVolume.toSI(parseFloat(Vi), unitV),
           Vf: convertVolume.toSI(parseFloat(Vf), unitV),
@@ -371,7 +374,7 @@ export default function App() {
           Pf: convertPressure.toSI(parseFloat(Pi), unitP), // fallback
           Ti: convertTemp.toSI(parseFloat(Ti), unitT),
           Tf: convertTemp.toSI(parseFloat(Ti), unitT),
-          gamma: parseFloat(gamma)
+          gamma: gasType === 'monoatomico' ? 5/3 : 7/5
         };
 
     const curvePoints = generateProcessCurve(process, currentSim);
@@ -523,9 +526,9 @@ export default function App() {
         <h3 className="intro-title">La Primera Ley de la Termodinámica</h3>
         <p className="intro-text">
           Establece que la energía no se crea ni se destruye, sino que se transforma. Para un sistema cerrado, 
-          cualquier transferencia de calor (<MathFormula formula="Q" />) o trabajo mecánico (<MathFormula formula="W" />) 
+          cualquier transferencia de calor (<MathFormula formula="q" />) o trabajo mecánico (<MathFormula formula="w" />) 
           con el entorno produce una variación en la energía interna (<MathFormula formula="\Delta U" />) del sistema, 
-          expresada como: <MathFormula formula="\Delta U = Q + W" />.
+          expresada como: <MathFormula formula="\Delta U = q + w" />.
         </p>
       </section>
 
@@ -626,27 +629,25 @@ export default function App() {
                 {errors.n && <span className="validation-error">{errors.n}</span>}
               </div>
 
-              {/* Gamma (γ) */}
-              {process === 'adiabatico' && (
-                <div className="form-group">
-                  <div className="label-container">
-                    <label>Coeficiente Adiabático (γ)</label>
-                    <HelpTooltip text="Relación de capacidades caloríficas (Cp/Cv). Monotómico = 1.67, Diatómico = 1.40." />
-                  </div>
-                  <div className="input-container">
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      value={gamma} 
-                      onChange={(e) => setGamma(e.target.value)}
-                      disabled={isSimulating}
-                      className="input-field" 
-                    />
-                    <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>ratio</span>
-                  </div>
-                  {errors.gamma && <span className="validation-error">{errors.gamma}</span>}
+              {/* Tipo de Gas */}
+              <div className="form-group">
+                <div className="label-container">
+                  <label>Tipo de Gas</label>
+                  <HelpTooltip text="Selecciona si el gas es Monoatómico (He, Ne, Ar, etc.) o Diatómico (O2, N2, H2, etc.). Esto define las capacidades caloríficas Cp, Cv y el coeficiente adiabático (γ)." />
                 </div>
-              )}
+                <div className="input-container">
+                  <select 
+                    value={gasType} 
+                    onChange={(e) => setGasType(e.target.value)}
+                    disabled={isSimulating}
+                    className="unit-select"
+                    style={{ width: '100%', borderRadius: '6px', padding: '0.35rem', border: '1px solid var(--border-color)' }}
+                  >
+                    <option value="monoatomico">Monoatómico (γ = 5/3 ≈ 1.67)</option>
+                    <option value="diatomico">Diatómico (γ = 7/5 = 1.40)</option>
+                  </select>
+                </div>
+              </div>
 
               {/* Isotérmico inputs */}
               {process === 'isotermico' && (
@@ -977,21 +978,21 @@ export default function App() {
               {/* Output variables cards grid */}
               <section className="results-grid">
                 <div className="result-card work">
-                  <span className="result-label">Trabajo de Volumen (W_vol)</span>
+                  <span className="result-label">Trabajo de Volumen (w_vol)</span>
                   <span className="result-value">
                     {results.W_vol.toFixed(1)}
                   </span>
                   <span className="result-unit">Joules (J)</span>
                 </div>
                 <div className="result-card work">
-                  <span className="result-label">Trabajo de Presión (W_pres)</span>
+                  <span className="result-label">Trabajo de Presión (w_pres)</span>
                   <span className="result-value">
                     {results.W_pres.toFixed(1)}
                   </span>
                   <span className="result-unit">Joules (J)</span>
                 </div>
                 <div className="result-card heat">
-                  <span className="result-label">Calor (Q)</span>
+                  <span className="result-label">Calor (q)</span>
                   <span className="result-value">
                     {results.Q.toFixed(1)}
                   </span>
@@ -1010,6 +1011,13 @@ export default function App() {
                     {results.deltaH.toFixed(1)}
                   </span>
                   <span className="result-unit">Joules (J)</span>
+                </div>
+                <div className="result-card energy">
+                  <span className="result-label">Entropía (ΔS)</span>
+                  <span className="result-value">
+                    {results.deltaS.toFixed(3)}
+                  </span>
+                  <span className="result-unit">J / K</span>
                 </div>
                 <div className="result-card">
                   <span className="result-label">Presión Final (Pf)</span>
@@ -1143,9 +1151,12 @@ export default function App() {
                         <span className="history-item-time">{item.timestamp}</span>
                       </div>
                       <div className="history-item-summary">
-                        <span>W: {item.results.W.toFixed(0)} J</span>
-                        <span>Q: {item.results.Q.toFixed(0)} J</span>
+                        <span>w: {item.results.W.toFixed(0)} J</span>
+                        <span>q: {item.results.Q.toFixed(0)} J</span>
                         <span>ΔU: {item.results.deltaU.toFixed(0)} J</span>
+                        {item.results.deltaS !== undefined && (
+                          <span>ΔS: {item.results.deltaS.toFixed(2)} J/K</span>
+                        )}
                         <span style={{ color: 'var(--espe-gold)', display: 'flex', alignItems: 'center', gap: '2px' }}>
                           Cargar
                         </span>
@@ -1201,20 +1212,19 @@ export default function App() {
             {/* Simulation settings & results summary */}
             <div style={{ display: 'flex', gap: '25px', marginBottom: '25px' }}>
               <div style={{ flex: 1, border: '1px solid #D9E1E8', borderRadius: '10px', padding: '15px' }}>
-                <h3 style={{ fontSize: '14px', color: '#006935', margin: '0 0 10px 0', borderBottom: '1px solid #D9E1E8', paddingBottom: '4px' }}>Configuración del Proceso: <span style={{ textTransform: 'uppercase', color: '#006935' }}>{process}</span></h3>
+                 <h3 style={{ fontSize: '14px', color: '#006935', margin: '0 0 10px 0', borderBottom: '1px solid #D9E1E8', paddingBottom: '4px' }}>Configuración del Proceso: <span style={{ textTransform: 'uppercase', color: '#006935' }}>{process}</span></h3>
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Moles (n)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{n} mol</td></tr>
-                    {process === 'adiabatico' && (
-                      <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Coef. Adiabático (γ)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{gamma}</td></tr>
-                    )}
+                    <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Tipo de Gas</td><td style={{ textAlign: 'right', fontWeight: 'bold', textTransform: 'capitalize' }}>{gasType}</td></tr>
+                    <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Coef. Adiabático (γ)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{(gasType === 'monoatomico' ? 5/3 : 7/5).toFixed(2)}</td></tr>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Presión Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertPressure.fromSI(results.Pi, unitP).toFixed(2)} {unitP}</td></tr>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Volumen Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertVolume.fromSI(results.Vi, unitV).toFixed(3)} {unitV}</td></tr>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Temp. Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertTemp.fromSI(results.Ti, unitT).toFixed(1)} °{unitT}</td></tr>
                   </tbody>
                 </table>
               </div>
-
+ 
               <div style={{ flex: 1, border: '1px solid #D9E1E8', borderRadius: '10px', padding: '15px' }}>
                 <h3 style={{ fontSize: '14px', color: '#006935', margin: '0 0 10px 0', borderBottom: '1px solid #D9E1E8', paddingBottom: '4px' }}>Variables Finales del Estado B</h3>
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
@@ -1226,24 +1236,24 @@ export default function App() {
                 </table>
               </div>
             </div>
-
+ 
             {/* First law calculations summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '15px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
               <div style={{ borderLeft: '4px solid #006935', padding: '10px', backgroundColor: '#F3F4F6' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Volumen (W_vol)</div>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Volumen (w_vol)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.W_vol.toFixed(1)} J</div>
               </div>
               <div style={{ borderLeft: '4px solid #006935', padding: '10px', backgroundColor: '#F3F4F6' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Presión (W_pres)</div>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Trabajo de Presión (w_pres)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.W_pres.toFixed(1)} J</div>
               </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '25px' }}>
               <div style={{ borderLeft: '4px solid #EA580C', padding: '10px', backgroundColor: '#F3F4F6' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Calor Transferido (Q)</div>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Calor Transferido (q)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.Q.toFixed(1)} J</div>
               </div>
+            </div>
+ 
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '25px' }}>
               <div style={{ borderLeft: '4px solid #D4AF37', padding: '10px', backgroundColor: '#F3F4F6' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Cambio Energía (ΔU)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.deltaU.toFixed(1)} J</div>
@@ -1251,6 +1261,10 @@ export default function App() {
               <div style={{ borderLeft: '4px solid #D4AF37', padding: '10px', backgroundColor: '#F3F4F6' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Entalpía (ΔH)</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.deltaH.toFixed(1)} J</div>
+              </div>
+              <div style={{ borderLeft: '4px solid #D4AF37', padding: '10px', backgroundColor: '#F3F4F6' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Entropía (ΔS)</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937' }}>{results.deltaS.toFixed(3)} J/K</div>
               </div>
             </div>
 
