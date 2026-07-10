@@ -347,7 +347,7 @@ export function calculateSimulation(process, inputs) {
         },
         {
           title: "8. Variación de Entropía (ΔS)",
-          desc: "Dado que es un proceso adiabático reversible (isentrópico), no hay transferencia de calor con el entorno, por lo que la variación de entropía es nula.",
+          desc: "Dado que es un proceso adiabático reversible (isoentrópico), no hay transferencia de calor con el entorno, por lo que la variación de entropía es nula.",
           formula: `\\Delta S = 0 \\text{ J/K}`
         }
       ];

@@ -551,7 +551,7 @@ export default function App() {
                 { id: 'isotermico', label: 'Isotérmico (T = cte)' },
                 { id: 'isobarico', label: 'Isobárico (P = cte)' },
                 { id: 'isocorico', label: 'Isocórico (V = cte)' },
-                { id: 'adiabatico', label: 'Adiabático (Q = 0)' }
+                { id: 'adiabatico', label: 'Adiabático (q = 0)' }
               ].map(proc => (
                 <button
                   key={proc.id}
@@ -643,8 +643,8 @@ export default function App() {
                     className="unit-select"
                     style={{ width: '100%', borderRadius: '6px', padding: '0.35rem', border: '1px solid var(--border-color)' }}
                   >
-                    <option value="monoatomico">Monoatómico (γ = 5/3 ≈ 1.67)</option>
-                    <option value="diatomico">Diatómico (γ = 7/5 = 1.40)</option>
+                    <option value="monoatomico">Monoatómico</option>
+                    <option value="diatomico">Diatómico</option>
                   </select>
                 </div>
               </div>
@@ -1036,7 +1036,7 @@ export default function App() {
               </section>
 
               {/* Math Development & Physical Explanation Tabs */}
-              <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.5rem' }}>
+              <section className="math-explanation-section">
                 
                 {/* Math Step-by-Step Formulas */}
                 <div className="card">
@@ -1216,8 +1216,10 @@ export default function App() {
                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Moles (n)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{n} mol</td></tr>
-                    <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Tipo de Gas</td><td style={{ textAlign: 'right', fontWeight: 'bold', textTransform: 'capitalize' }}>{gasType}</td></tr>
-                    <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Coef. Adiabático (γ)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{(gasType === 'monoatomico' ? 5/3 : 7/5).toFixed(2)}</td></tr>
+                    <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Tipo de Gas</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{gasType === 'monoatomico' ? 'Monoatómico' : 'Diatómico'}</td></tr>
+                    {process === 'adiabatico' && (
+                      <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Coef. Adiabático (γ)</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{(gasType === 'monoatomico' ? 5/3 : 7/5).toFixed(2)}</td></tr>
+                    )}
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Presión Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertPressure.fromSI(results.Pi, unitP).toFixed(2)} {unitP}</td></tr>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Volumen Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertVolume.fromSI(results.Vi, unitV).toFixed(3)} {unitV}</td></tr>
                     <tr style={{ borderBottom: '1px solid #F3F4F6' }}><td style={{ padding: '6px 0' }}>Temp. Inicial</td><td style={{ textAlign: 'right', fontWeight: 'bold' }}>{convertTemp.fromSI(results.Ti, unitT).toFixed(1)} °{unitT}</td></tr>
