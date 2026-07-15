@@ -163,12 +163,12 @@ export function calculateSimulation(process, inputs) {
 
     case 'isobarico': {
       Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
-      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+      Ti = convertTemp.toSI(parseFloat(inputs.Ti), inputs.unitT);
       Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
       Pf = Pi;
 
-      // Ideal gas law for temperatures
-      Ti = (Pi * Vi) / (n * R);
+      // Ideal gas law: calculate Vi from Ti and Pi, and Tf from Pf and Vf
+      Vi = (n * R * Ti) / Pi;
       Tf = (Pf * Vf) / (n * R);
 
       // Work done: w = P * deltaV
@@ -185,9 +185,9 @@ export function calculateSimulation(process, inputs) {
 
       mathSteps = [
         {
-          title: "1. Cálculo de Temperaturas Inicial y Final",
-          desc: "Determinamos las temperaturas en base a la ecuación del gas ideal T = PV / (nR).",
-          formula: `T_i = \\frac{P_i V_i}{n R} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)}}{${n} \\cdot 8.314} = ${Ti.toFixed(2)} \\text{ K}`
+          title: "1. Cálculo de Volumen Inicial (Vi)",
+          desc: "Determinamos el volumen inicial del gas en base a la temperatura inicial ingresada y la presión usando Vi = nRTi / Pi.",
+          formula: `V_i = \\frac{n R T_i}{P_i} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Pi.toFixed(2)}} = ${Vi.toFixed(4)} \\text{ m}^3`
         },
         {
           title: "2. Temperatura Final (Tf)",
@@ -236,12 +236,12 @@ export function calculateSimulation(process, inputs) {
 
     case 'isocorico': {
       Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
-      Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+      Ti = convertTemp.toSI(parseFloat(inputs.Ti), inputs.unitT);
       Pf = convertPressure.toSI(parseFloat(inputs.Pf), inputs.unitP);
       Vf = Vi;
 
-      // Ideal gas law for temperatures
-      Ti = (Pi * Vi) / (n * R);
+      // Ideal gas law: calculate Pi from Ti and Vi, and Tf from Pf and Vf
+      Pi = (n * R * Ti) / Vi;
       Tf = (Pf * Vf) / (n * R);
 
       // No volume change means w = 0
@@ -256,9 +256,9 @@ export function calculateSimulation(process, inputs) {
 
       mathSteps = [
         {
-          title: "1. Cálculo de Temperaturas de Estado",
-          desc: "Calculamos la temperatura inicial en base a la ley de gases ideales:",
-          formula: `T_i = \\frac{P_i V}{n R} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)}}{${n} \\cdot 8.314} = ${Ti.toFixed(2)} \\text{ K}`
+          title: "1. Cálculo de Presión Inicial (Pi)",
+          desc: "Determinamos la presión inicial del gas en base a la temperatura inicial ingresada y el volumen usando Pi = nRTi / V.",
+          formula: `P_i = \\frac{n R T_i}{V} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Vi.toFixed(4)}} = ${Pi.toFixed(2)} \\text{ Pa}`
         },
         {
           title: "2. Temperatura Final",
@@ -292,31 +292,35 @@ export function calculateSimulation(process, inputs) {
         }
       ];
 
-      explanation = `En este proceso isocórico (volumen constante a ${convertVolume.fromSI(Vi, inputs.unitV).toFixed(3)} ${inputs.unitV}), ` +
-        `el trabajo de volumen es nulo (w_vol = 0 J), mientras que el trabajo de presión desarrollado es de ${W_pres.toFixed(1)} J debido al gradiente de presión. ` +
-        `Todo el calor transferido (q = ${Q.toFixed(1)} J) se traduce directamente en un cambio proporcional en la energía interna (ΔU = ${deltaU.toFixed(1)} J) ` +
-        `y en la entalpía (ΔH = ${deltaH.toFixed(1)} J), modificando la temperatura de ` +
-        `${convertTemp.fromSI(Ti, inputs.unitT).toFixed(1)}°${inputs.unitT} a ${convertTemp.fromSI(Tf, inputs.unitT).toFixed(1)}°${inputs.unitT}. La variación de entropía es de ${deltaS.toFixed(4)} J/K.`;
+      explanation = `En un proceso isocórico (volumen constante a ${convertVolume.fromSI(Vi, inputs.unitV).toFixed(3)} ${inputs.unitV}), ` +
+        `el calor transferido al gas es de (q = ${Q.toFixed(1)} J), el cual se transforma íntegramente en variación de energía interna (ΔU = ${deltaU.toFixed(1)} J). ` +
+        `La presión inicial aumenta/disminuye de ${convertPressure.fromSI(Pi, inputs.unitP).toFixed(1)} ${inputs.unitP} a ${convertPressure.fromSI(Pf, inputs.unitP).toFixed(1)} ${inputs.unitP}, ` +
+        `elevando/bajando la temperatura de ${convertTemp.fromSI(Ti, inputs.unitT).toFixed(1)}°${inputs.unitT} a ${convertTemp.fromSI(Tf, inputs.unitT).toFixed(1)}°${inputs.unitT}. ` +
+        `El trabajo de frontera es nulo, el trabajo de presión es de ${W_pres.toFixed(1)} J, la entalpía cambia en ${deltaH.toFixed(1)} J y la entropía varía en ${deltaS.toFixed(4)} J/K.`;
       break;
     }
 
     case 'adiabatico': {
       const inputMode = inputs.inputMode || 'volumen';
+      Ti = convertTemp.toSI(parseFloat(inputs.Ti), inputs.unitT);
 
       if (inputMode === 'volumen') {
         Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
-        Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
         Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+        
+        // Calculate Vi from Ti and Pi
+        Vi = (n * R * Ti) / Pi;
         Pf = Pi * Math.pow(Vi / Vf, gamma);
       } else {
         Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
         Pf = convertPressure.toSI(parseFloat(inputs.Pf), inputs.unitP);
-        Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+        
+        // Calculate Vi from Ti and Pi
+        Vi = (n * R * Ti) / Pi;
         Vf = Vi * Math.pow(Pi / Pf, 1 / gamma);
       }
 
       // Temperatures
-      Ti = (Pi * Vi) / (n * R);
       Tf = (Pf * Vf) / (n * R);
 
       // Adiabatic means no heat transfer
@@ -331,48 +335,55 @@ export function calculateSimulation(process, inputs) {
       W_pres = gamma * W;
       deltaH = n * Cp * (Tf - Ti);
 
+      const step2 = inputMode === 'presion' ? {
+        title: "2. Cálculo de Volumen Final (Vf)",
+        desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar V_f.",
+        formula: `V_f = V_i \\left(\\frac{P_i}{P_f}\\right)^{1/\\gamma} = ${Vi.toFixed(4)} \\cdot \\left(\\frac{${Pi.toFixed(0)}}{${Pf.toFixed(0)}}\\right)^{1/${gamma.toFixed(2)}} = ${Vf.toFixed(4)} \\text{ m}^3`
+      } : {
+        title: "2. Cálculo de Presión Final (Pf)",
+        desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar P_f.",
+        formula: `P_f = P_i \\left(\\frac{V_i}{V_f}\\right)^\\gamma = ${Pi.toFixed(0)} \\cdot \\left(\\frac{${Vi.toFixed(4)}}{${Vf.toFixed(4)}}\\right)^{${gamma.toFixed(2)}} = ${Pf.toFixed(2)} \\text{ Pa}`
+      };
+
       mathSteps = [
-        inputMode === 'presion' ? {
-          title: "1. Cálculo de Volumen Final (Vf)",
-          desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar V_f.",
-          formula: `V_f = V_i \\left(\\frac{P_i}{P_f}\\right)^{1/\\gamma} = ${Vi.toFixed(4)} \\cdot \\left(\\frac{${Pi.toFixed(0)}}{${Pf.toFixed(0)}}\\right)^{1/${gamma.toFixed(2)}} = ${Vf.toFixed(4)} \\text{ m}^3`
-        } : {
-          title: "1. Cálculo de Presión Final (Pf)",
-          desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar P_f.",
-          formula: `P_f = P_i \\left(\\frac{V_i}{V_f}\\right)^\\gamma = ${Pi.toFixed(0)} \\cdot \\left(\\frac{${Vi.toFixed(4)}}{${Vf.toFixed(4)}}\\right)^{${gamma.toFixed(2)}} = ${Pf.toFixed(2)} \\text{ Pa}`
+        {
+          title: "1. Cálculo de Volumen Inicial (Vi)",
+          desc: "Calculamos el volumen inicial a partir de la temperatura inicial ingresada y la presión inicial usando Vi = nRTi / Pi.",
+          formula: `V_i = \\frac{n R T_i}{P_i} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Pi.toFixed(2)}} = ${Vi.toFixed(4)} \\text{ m}^3`
+        },
+        step2,
+        {
+          title: "3. Cálculo de Temperatura Final (Tf)",
+          desc: "Calculamos la temperatura final del estado B empleando PV = nRT.",
+          formula: `T_f = \\frac{P_f V_f}{n R} = \\frac{${Pf.toFixed(0)} \\cdot ${Vf.toFixed(4)}}{${n} \\cdot 8.314} = ${Tf.toFixed(2)} \\text{ K}`
         },
         {
-          title: "2. Cálculo de Temperaturas Inicial y Final",
-          desc: "Calculamos las temperaturas en Kelvin empleando PV = nRT.",
-          formula: `T_i = \\frac{P_i V_i}{n R} = ${Ti.toFixed(2)} \\text{ K}, \\quad T_f = \\frac{P_f V_f}{n R} = ${Tf.toFixed(2)} \\text{ K}`
-        },
-        {
-          title: "3. Calor Transferido (q)",
+          title: "4. Calor Transferido (q)",
           desc: "Por definición de proceso adiabático, el sistema está térmicamente aislado del exterior:",
           formula: `q = 0 \\text{ J}`
         },
         {
-          title: "4. Trabajo de Volumen (w_vol)",
+          title: "5. Trabajo de Volumen (w_vol)",
           desc: "El trabajo de volumen o frontera se realiza a expensas del cambio en la energía interna:",
           formula: `w_{vol} = \\frac{P_i V_i - P_f V_f}{\\gamma - 1} = \\frac{${Pi.toFixed(0)} \\cdot ${Vi.toFixed(4)} - ${Pf.toFixed(0)} \\cdot ${Vf.toFixed(4)}}{${gamma.toFixed(2)} - 1} = ${W_vol.toFixed(2)} \\text{ J}`
         },
         {
-          title: "5. Trabajo de Presión (w_pres)",
+          title: "6. Trabajo de Presión (w_pres)",
           desc: "El trabajo de presión o flujo en un proceso adiabático es proporcional al trabajo de volumen multiplicándolo por γ.",
           formula: `w_{pres} = -\\int V dP = \\gamma w_{vol} = ${gamma.toFixed(2)} \\cdot ${W_vol.toFixed(2)} = ${W_pres.toFixed(2)} \\text{ J}`
         },
         {
-          title: "6. Variación de Energía Interna (ΔU)",
+          title: "7. Variación de Energía Interna (ΔU)",
           desc: "De acuerdo con la Primera Ley, ΔU = q - w_vol, al ser q = 0:",
           formula: `\\Delta U = -w_{vol} = -(${W_vol.toFixed(2)}) = ${deltaU.toFixed(2)} \\text{ J}`
         },
         {
-          title: "7. Variación de Entalpía (ΔH)",
+          title: "8. Variación de Entalía (ΔH)",
           desc: "La entalpía se determina con la capacidad calorífica Cp y es igual a -w_pres en procesos adiabáticos:",
           formula: `\\Delta H = n C_p \\Delta T = ${n} \\cdot ${Cp.toFixed(2)} \\cdot (${Tf.toFixed(2)} - ${Ti.toFixed(2)}) = ${deltaH.toFixed(2)} \\text{ J}`
         },
         {
-          title: "8. Variación de Entropía (ΔS)",
+          title: "9. Variación de Entropía (ΔS)",
           desc: "Dado que es un proceso adiabático reversible (isoentrópico), no hay transferencia de calor con el entorno, por lo que la variación de entropía es nula.",
           formula: `\\Delta S = 0 \\text{ J/K}`
         }

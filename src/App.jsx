@@ -51,9 +51,9 @@ export default function App() {
   // Dynamic inputs based on selected process (independent parameters per process)
   const [processInputs, setProcessInputs] = useState({
     isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
-    isobarico: { Pi: '100', Vi: '10', Vf: '25' },
-    isocorico: { Vi: '15', Pi: '100', Pf: '220' },
-    adiabatico: { Pi: '120', Vi: '10', Vf: '22', Pf: '200', inputMode: 'volumen' }
+    isobarico: { Ti: '25', Pi: '100', Vf: '50' },
+    isocorico: { Ti: '25', Vi: '15', Pf: '300' },
+    adiabatico: { Ti: '25', Pi: '120', Vf: '40', Pf: '200', inputMode: 'volumen' }
   });
 
   // Derived inputs for current process
@@ -153,44 +153,43 @@ export default function App() {
     }
 
     if (process === 'isobarico') {
+      const TiVal = parseFloat(Ti);
       const PiVal = parseFloat(Pi);
-      const ViVal = parseFloat(Vi);
       const VfVal = parseFloat(Vf);
 
+      if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
+        newErrors.Ti = "Temperatura no válida (> 0 K)";
+      }
       if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
-      if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
       if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
-      if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
     }
 
     if (process === 'isocorico') {
+      const TiVal = parseFloat(Ti);
       const ViVal = parseFloat(Vi);
-      const PiVal = parseFloat(Pi);
       const PfVal = parseFloat(Pf);
 
+      if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
+        newErrors.Ti = "Temperatura no válida (> 0 K)";
+      }
       if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
-      if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
       if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
-      if (PiVal === PfVal) newErrors.Pf = "Presión final debe diferir de la inicial";
     }
 
     if (process === 'adiabatico') {
+      const TiVal = parseFloat(Ti);
+      const PiVal = parseFloat(Pi);
+
+      if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
+        newErrors.Ti = "Temperatura no válida (> 0 K)";
+      }
+      if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+
       if (inputMode === 'volumen') {
-        const PiVal = parseFloat(Pi);
-        const ViVal = parseFloat(Vi);
         const VfVal = parseFloat(Vf);
-
-        if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
-        if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
         if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
-        if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
       } else {
-        const ViVal = parseFloat(Vi);
-        const PiVal = parseFloat(Pi);
         const PfVal = parseFloat(Pf);
-
-        if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
-        if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
         if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
         if (PiVal === PfVal) newErrors.Pf = "Presión final debe diferir de la inicial";
       }
@@ -296,9 +295,9 @@ export default function App() {
     // Reset inputs of the active process to defaults
     const defaults = {
       isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
-      isobarico: { Pi: '100', Vi: '10', Vf: '25' },
-      isocorico: { Vi: '15', Pi: '100', Pf: '220' },
-      adiabatico: { Pi: '120', Vi: '10', Vf: '22', Pf: '200', inputMode: 'volumen' }
+      isobarico: { Ti: '25', Pi: '100', Vf: '50' },
+      isocorico: { Ti: '25', Vi: '15', Pf: '300' },
+      adiabatico: { Ti: '25', Pi: '120', Vf: '40', Pf: '200', inputMode: 'volumen' }
     };
 
     setProcessInputs(prev => ({
@@ -430,43 +429,39 @@ export default function App() {
           staticVolFinal = (nVal * 8.314 * staticTemp) / staticPresFinal;
         }
       } else if (process === 'isobarico') {
+        const TiVal = parseFloat(Ti);
         const PiVal = parseFloat(Pi);
-        const ViVal = parseFloat(Vi);
         const VfVal = parseFloat(Vf);
+        if (!isNaN(TiVal)) staticTemp = convertTemp.toSI(TiVal, unitT);
         if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
         staticPresFinal = staticPres;
-        if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+        staticVol = (nVal * 8.314 * staticTemp) / staticPres;
         if (!isNaN(VfVal) && VfVal > 0) staticVolFinal = convertVolume.toSI(VfVal, unitV);
-        staticTemp = (staticPres * staticVol) / (nVal * 8.314);
       } else if (process === 'isocorico') {
+        const TiVal = parseFloat(Ti);
         const ViVal = parseFloat(Vi);
-        const PiVal = parseFloat(Pi);
         const PfVal = parseFloat(Pf);
+        if (!isNaN(TiVal)) staticTemp = convertTemp.toSI(TiVal, unitT);
         if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
         staticVolFinal = staticVol;
-        if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+        staticPres = (nVal * 8.314 * staticTemp) / staticVol;
         if (!isNaN(PfVal) && PfVal > 0) staticPresFinal = convertPressure.toSI(PfVal, unitP);
-        staticTemp = (staticPres * staticVol) / (nVal * 8.314);
       } else if (process === 'adiabatico') {
+        const TiVal = parseFloat(Ti);
+        const PiVal = parseFloat(Pi);
+        if (!isNaN(TiVal)) staticTemp = convertTemp.toSI(TiVal, unitT);
+        if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+        staticVol = (nVal * 8.314 * staticTemp) / staticPres;
+
         const gammaVal = gasType === 'monoatomico' ? 5/3 : 7/5;
         if (inputMode === 'volumen') {
-          const PiVal = parseFloat(Pi);
-          const ViVal = parseFloat(Vi);
           const VfVal = parseFloat(Vf);
-          if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
-          if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
           if (!isNaN(VfVal) && VfVal > 0) staticVolFinal = convertVolume.toSI(VfVal, unitV);
           staticPresFinal = staticPres * Math.pow(staticVol / staticVolFinal, gammaVal);
-          staticTemp = (staticPres * staticVol) / (nVal * 8.314);
         } else {
-          const PiVal = parseFloat(Pi);
           const PfVal = parseFloat(Pf);
-          const ViVal = parseFloat(Vi);
-          if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
           if (!isNaN(PfVal) && PfVal > 0) staticPresFinal = convertPressure.toSI(PfVal, unitP);
-          if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
           staticVolFinal = staticVol * Math.pow(staticPres / staticPresFinal, 1 / gammaVal);
-          staticTemp = (staticPres * staticVol) / (nVal * 8.314);
         }
       }
     }
@@ -895,6 +890,23 @@ export default function App() {
                 <>
                   <div className="form-group">
                     <div className="label-container">
+                      <label>Temperatura Inicial (Ti)</label>
+                      <HelpTooltip text="Temperatura inicial del gas antes del proceso." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Ti} 
+                        onChange={(e) => setTi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>°{unitT}</span>
+                    </div>
+                    {errors.Ti && <span className="validation-error">{errors.Ti}</span>}
+                  </div>
+                  <div className="form-group">
+                    <div className="label-container">
                       <label>Presión (P = cte)</label>
                       <HelpTooltip text="Presión del sistema que se mantendrá fija durante el desplazamiento." />
                     </div>
@@ -909,23 +921,6 @@ export default function App() {
                       <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
                     </div>
                     {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
-                  </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Volumen Inicial (Vi)</label>
-                      <HelpTooltip text="Volumen al comienzo de la expansión/compresión." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Vi} 
-                        onChange={(e) => setVi(e.target.value)} 
-                        disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                    </div>
-                    {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
                   </div>
                   <div className="form-group">
                     <div className="label-container">
@@ -952,6 +947,23 @@ export default function App() {
                 <>
                   <div className="form-group">
                     <div className="label-container">
+                      <label>Temperatura Inicial (Ti)</label>
+                      <HelpTooltip text="Temperatura inicial del gas antes del proceso." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Ti} 
+                        onChange={(e) => setTi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>°{unitT}</span>
+                    </div>
+                    {errors.Ti && <span className="validation-error">{errors.Ti}</span>}
+                  </div>
+                  <div className="form-group">
+                    <div className="label-container">
                       <label>Volumen (V = cte)</label>
                       <HelpTooltip text="Volumen constante del recipiente sellado." />
                     </div>
@@ -966,23 +978,6 @@ export default function App() {
                       <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
                     </div>
                     {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
-                  </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Presión Inicial (Pi)</label>
-                      <HelpTooltip text="Presión del gas antes del calentamiento/enfriamiento." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Pi} 
-                        onChange={(e) => setPi(e.target.value)} 
-                        disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
-                    </div>
-                    {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
                   </div>
                   <div className="form-group">
                     <div className="label-container">
@@ -1020,7 +1015,7 @@ export default function App() {
                         style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
                         disabled={isSimulating}
                       >
-                        Ingresar Volumen (Vi, Vf)
+                        Ingresar Volumen (Ti, Pi, Vf)
                       </button>
                       <button
                         type="button"
@@ -1029,119 +1024,83 @@ export default function App() {
                         style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
                         disabled={isSimulating}
                       >
-                        Ingresar Presión (Pi, Pf)
+                        Ingresar Presión (Ti, Pi, Pf)
                       </button>
                     </div>
                   </div>
 
+                  <div className="form-group">
+                    <div className="label-container">
+                      <label>Temperatura Inicial (Ti)</label>
+                      <HelpTooltip text="Temperatura inicial del gas antes de la expansión o compresión adiabática." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Ti} 
+                        onChange={(e) => setTi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>°{unitT}</span>
+                    </div>
+                    {errors.Ti && <span className="validation-error">{errors.Ti}</span>}
+                  </div>
+
+                  <div className="form-group">
+                    <div className="label-container">
+                      <label>Presión Inicial (Pi)</label>
+                      <HelpTooltip text="Presión al comienzo de la expansión o compresión adiabática." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Pi} 
+                        onChange={(e) => setPi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                    </div>
+                    {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                  </div>
+
                   {inputMode === 'volumen' ? (
-                    <>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Presión Inicial (Pi)</label>
-                          <HelpTooltip text="Presión al comienzo del proceso adiabático." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Pi} 
-                            onChange={(e) => setPi(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
-                        </div>
-                        {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                    <div className="form-group">
+                      <div className="label-container">
+                        <label>Volumen Final (Vf)</label>
+                        <HelpTooltip text="Volumen final tras el desplazamiento adiabático." />
                       </div>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Volumen Inicial (Vi)</label>
-                          <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión adiabática." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Vi} 
-                            onChange={(e) => setVi(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                        </div>
-                        {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                      <div className="input-container">
+                        <input 
+                          type="number" 
+                          value={Vf} 
+                          onChange={(e) => setVf(e.target.value)} 
+                          disabled={isSimulating}
+                          className="input-field" 
+                        />
+                        <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
                       </div>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Volumen Final (Vf)</label>
-                          <HelpTooltip text="Volumen final tras el desplazamiento adiabático." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Vf} 
-                            onChange={(e) => setVf(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                        </div>
-                        {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
-                      </div>
-                    </>
+                      {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
+                    </div>
                   ) : (
-                    <>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Volumen Inicial (Vi)</label>
-                          <HelpTooltip text="Volumen del gas al inicio del proceso adiabático." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Vi} 
-                            onChange={(e) => setVi(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                        </div>
-                        {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                    <div className="form-group">
+                      <div className="label-container">
+                        <label>Presión Final (Pf)</label>
+                        <HelpTooltip text="Presión final tras el desplazamiento adiabático." />
                       </div>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Presión Inicial (Pi)</label>
-                          <HelpTooltip text="Presión al comienzo de la expansión o compresión adiabática." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Pi} 
-                            onChange={(e) => setPi(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
-                        </div>
-                        {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                      <div className="input-container">
+                        <input 
+                          type="number" 
+                          value={Pf} 
+                          onChange={(e) => setPf(e.target.value)} 
+                          disabled={isSimulating}
+                          className="input-field" 
+                        />
+                        <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
                       </div>
-                      <div className="form-group">
-                        <div className="label-container">
-                          <label>Presión Final (Pf)</label>
-                          <HelpTooltip text="Presión final tras el desplazamiento adiabático." />
-                        </div>
-                        <div className="input-container">
-                          <input 
-                            type="number" 
-                            value={Pf} 
-                            onChange={(e) => setPf(e.target.value)} 
-                            disabled={isSimulating}
-                            className="input-field" 
-                          />
-                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
-                        </div>
-                        {errors.Pf && <span className="validation-error">{errors.Pf}</span>}
-                      </div>
-                    </>
+                      {errors.Pf && <span className="validation-error">{errors.Pf}</span>}
+                    </div>
                   )}
                 </>
               )}
