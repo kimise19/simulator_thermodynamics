@@ -48,12 +48,30 @@ export default function App() {
   const [gasType, setGasType] = useState('diatomico');
   const [gamma, setGamma] = useState('1.4');
   
-  // Dynamic inputs based on selected process
-  const [Ti, setTi] = useState('25'); // °C
-  const [Pi, setPi] = useState('100'); // kPa
-  const [Pf, setPf] = useState('200'); // kPa
-  const [Vi, setVi] = useState('10');  // L
-  const [Vf, setVf] = useState('20');  // L
+  // Dynamic inputs based on selected process (independent parameters per process)
+  const [processInputs, setProcessInputs] = useState({
+    isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
+    isobarico: { Pi: '100', Vi: '10', Vf: '25' },
+    isocorico: { Vi: '15', Pi: '100', Pf: '220' },
+    adiabatico: { Pi: '120', Vi: '10', Vf: '22', Pf: '200', inputMode: 'volumen' }
+  });
+
+  // Derived inputs for current process
+  const currentInputs = processInputs[process] || {};
+  const Ti = currentInputs.Ti || '';
+  const Pi = currentInputs.Pi || '';
+  const Pf = currentInputs.Pf || '';
+  const Vi = currentInputs.Vi || '';
+  const Vf = currentInputs.Vf || '';
+  const inputMode = currentInputs.inputMode || 'volumen';
+
+  // Custom setters for current process
+  const setTi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Ti: val } }));
+  const setPi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Pi: val } }));
+  const setPf = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Pf: val } }));
+  const setVi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Vi: val } }));
+  const setVf = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Vf: val } }));
+  const setInputMode = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], inputMode: val } }));
 
   // Unit selections
   const [unitP, setUnitP] = useState('kPa');
@@ -100,31 +118,11 @@ export default function App() {
     localStorage.setItem('sim_history', JSON.stringify(history));
   }, [history]);
 
-  // Handle process change - reset inputs to reasonable defaults
+  // Handle process change - preserve inputs of each process
   const handleProcessChange = (proc) => {
     setProcess(proc);
     setErrors({});
     setResults(null);
-    
-    // Provide nice physical defaults for each process to make it easy to play with
-    if (proc === 'isotermico') {
-      setTi('25');
-      setVi('10');
-      setVf('20');
-    } else if (proc === 'isobarico') {
-      setPi('100');
-      setVi('10');
-      setVf('25');
-    } else if (proc === 'isocorico') {
-      setVi('15');
-      setPi('100');
-      setPf('220');
-    } else if (proc === 'adiabatico') {
-      setPi('120');
-      setVi('10');
-      setVf('22');
-      setGamma(gasType === 'monoatomico' ? '1.67' : '1.4');
-    }
   };
 
   // Input validation
@@ -136,15 +134,22 @@ export default function App() {
 
     if (process === 'isotermico') {
       const TiVal = parseFloat(Ti);
-      const ViVal = parseFloat(Vi);
-      const VfVal = parseFloat(Vf);
-      
       if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
         newErrors.Ti = "Temperatura no válida (> 0 K)";
       }
-      if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
-      if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
-      if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
+      if (inputMode === 'volumen') {
+        const ViVal = parseFloat(Vi);
+        const VfVal = parseFloat(Vf);
+        if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
+        if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
+        if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
+      } else {
+        const PiVal = parseFloat(Pi);
+        const PfVal = parseFloat(Pf);
+        if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+        if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
+        if (PiVal === PfVal) newErrors.Pf = "Presión final debe diferir de la inicial";
+      }
     }
 
     if (process === 'isobarico') {
@@ -170,20 +175,31 @@ export default function App() {
     }
 
     if (process === 'adiabatico') {
-      const PiVal = parseFloat(Pi);
-      const ViVal = parseFloat(Vi);
-      const VfVal = parseFloat(Vf);
+      if (inputMode === 'volumen') {
+        const PiVal = parseFloat(Pi);
+        const ViVal = parseFloat(Vi);
+        const VfVal = parseFloat(Vf);
 
-      if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
-      if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
-      if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
-      if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
+        if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+        if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
+        if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
+        if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
+      } else {
+        const ViVal = parseFloat(Vi);
+        const PiVal = parseFloat(Pi);
+        const PfVal = parseFloat(Pf);
+
+        if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
+        if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+        if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
+        if (PiVal === PfVal) newErrors.Pf = "Presión final debe diferir de la inicial";
+      }
     }
 
     // Dry run simulation to test physical realism
     if (Object.keys(newErrors).length === 0) {
       try {
-        const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
+        const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT, inputMode };
         const simResults = calculateSimulation(process, inputs);
         const tempLimitMin = 10; // K
         const tempLimitMax = 10000; // K
@@ -210,7 +226,7 @@ export default function App() {
     if (!validate()) return;
 
     // Collect all inputs
-    const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT };
+    const inputs = { n, gasType, gamma: gasType === 'monoatomico' ? 5/3 : 7/5, Ti, Pi, Pf, Vi, Vf, unitP, unitV, unitT, inputMode };
 
     // Calculate thermodynamic results
     const simResults = calculateSimulation(process, inputs);
@@ -276,7 +292,19 @@ export default function App() {
     setResults(null);
     setErrors({});
     setIsSimulating(false);
-    handleProcessChange(process);
+
+    // Reset inputs of the active process to defaults
+    const defaults = {
+      isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
+      isobarico: { Pi: '100', Vi: '10', Vf: '25' },
+      isocorico: { Vi: '15', Pi: '100', Pf: '220' },
+      adiabatico: { Pi: '120', Vi: '10', Vf: '22', Pf: '200', inputMode: 'volumen' }
+    };
+
+    setProcessInputs(prev => ({
+      ...prev,
+      [process]: { ...defaults[process] }
+    }));
   };
 
   // Load past simulation
@@ -286,12 +314,24 @@ export default function App() {
     const loadedGasType = item.inputs.gasType || (parseFloat(item.inputs.gamma) > 1.5 ? 'monoatomico' : 'diatomico');
     setGasType(loadedGasType);
     setGamma(item.inputs.gamma || (loadedGasType === 'monoatomico' ? '1.67' : '1.4'));
-    setTi(item.inputs.Ti);
-    setPi(item.inputs.Pi);
-    setPf(item.inputs.Pf);
-    setVi(item.inputs.Vi);
-    setVf(item.inputs.Vf);
+    
+    // Set the inputs for the specific process loaded from history
+    setProcessInputs(prev => ({
+      ...prev,
+      [item.process]: {
+        ...prev[item.process],
+        Ti: item.inputs.Ti || '',
+        Pi: item.inputs.Pi || '',
+        Pf: item.inputs.Pf || '',
+        Vi: item.inputs.Vi || '',
+        Vf: item.inputs.Vf || '',
+        inputMode: item.inputs.inputMode || 'volumen'
+      }
+    }));
+
     setUnitP(item.inputs.unitP);
+    setUnitV(item.inputs.unitV);
+    setUnitT(item.inputs.unitT);
     setUnitV(item.inputs.unitV);
     setUnitT(item.inputs.unitT);
 
@@ -359,6 +399,81 @@ export default function App() {
     }
   };
 
+  // Compute static values for piston animation in idle state
+  let staticTemp = 298.15; // default 25°C in Kelvin
+  let staticVol = 0.01; // default 10L in m3
+  let staticVolFinal = 0.02; // default 20L in m3
+  let staticPres = 101325; // default 1 atm in Pa
+  let staticPresFinal = 202650; // default 2 atm in Pa
+
+  try {
+    const nVal = parseFloat(n);
+    if (!isNaN(nVal) && nVal > 0) {
+      if (process === 'isotermico') {
+        const TiVal = parseFloat(Ti);
+        if (!isNaN(TiVal)) {
+          staticTemp = convertTemp.toSI(TiVal, unitT);
+        }
+        if (inputMode === 'volumen') {
+          const ViVal = parseFloat(Vi);
+          const VfVal = parseFloat(Vf);
+          if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+          if (!isNaN(VfVal) && VfVal > 0) staticVolFinal = convertVolume.toSI(VfVal, unitV);
+          staticPres = (nVal * 8.314 * staticTemp) / staticVol;
+          staticPresFinal = (nVal * 8.314 * staticTemp) / staticVolFinal;
+        } else {
+          const PiVal = parseFloat(Pi);
+          const PfVal = parseFloat(Pf);
+          if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+          if (!isNaN(PfVal) && PfVal > 0) staticPresFinal = convertPressure.toSI(PfVal, unitP);
+          staticVol = (nVal * 8.314 * staticTemp) / staticPres;
+          staticVolFinal = (nVal * 8.314 * staticTemp) / staticPresFinal;
+        }
+      } else if (process === 'isobarico') {
+        const PiVal = parseFloat(Pi);
+        const ViVal = parseFloat(Vi);
+        const VfVal = parseFloat(Vf);
+        if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+        staticPresFinal = staticPres;
+        if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+        if (!isNaN(VfVal) && VfVal > 0) staticVolFinal = convertVolume.toSI(VfVal, unitV);
+        staticTemp = (staticPres * staticVol) / (nVal * 8.314);
+      } else if (process === 'isocorico') {
+        const ViVal = parseFloat(Vi);
+        const PiVal = parseFloat(Pi);
+        const PfVal = parseFloat(Pf);
+        if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+        staticVolFinal = staticVol;
+        if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+        if (!isNaN(PfVal) && PfVal > 0) staticPresFinal = convertPressure.toSI(PfVal, unitP);
+        staticTemp = (staticPres * staticVol) / (nVal * 8.314);
+      } else if (process === 'adiabatico') {
+        const gammaVal = gasType === 'monoatomico' ? 5/3 : 7/5;
+        if (inputMode === 'volumen') {
+          const PiVal = parseFloat(Pi);
+          const ViVal = parseFloat(Vi);
+          const VfVal = parseFloat(Vf);
+          if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+          if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+          if (!isNaN(VfVal) && VfVal > 0) staticVolFinal = convertVolume.toSI(VfVal, unitV);
+          staticPresFinal = staticPres * Math.pow(staticVol / staticVolFinal, gammaVal);
+          staticTemp = (staticPres * staticVol) / (nVal * 8.314);
+        } else {
+          const PiVal = parseFloat(Pi);
+          const PfVal = parseFloat(Pf);
+          const ViVal = parseFloat(Vi);
+          if (!isNaN(PiVal) && PiVal > 0) staticPres = convertPressure.toSI(PiVal, unitP);
+          if (!isNaN(PfVal) && PfVal > 0) staticPresFinal = convertPressure.toSI(PfVal, unitP);
+          if (!isNaN(ViVal) && ViVal > 0) staticVol = convertVolume.toSI(ViVal, unitV);
+          staticVolFinal = staticVol * Math.pow(staticPres / staticPresFinal, 1 / gammaVal);
+          staticTemp = (staticPres * staticVol) / (nVal * 8.314);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error calculating static variables:", e);
+  }
+
   // Build chart dataset
   let chartData = null;
   let chartOptions = null;
@@ -368,12 +483,12 @@ export default function App() {
     const currentSim = results 
       ? { ...results, gamma: gasType === 'monoatomico' ? 5/3 : 7/5 }
       : {
-          Vi: convertVolume.toSI(parseFloat(Vi), unitV),
-          Vf: convertVolume.toSI(parseFloat(Vf), unitV),
-          Pi: convertPressure.toSI(parseFloat(Pi), unitP),
-          Pf: convertPressure.toSI(parseFloat(Pi), unitP), // fallback
-          Ti: convertTemp.toSI(parseFloat(Ti), unitT),
-          Tf: convertTemp.toSI(parseFloat(Ti), unitT),
+          Vi: staticVol,
+          Vf: staticVolFinal,
+          Pi: staticPres,
+          Pf: staticPresFinal,
+          Ti: staticTemp,
+          Tf: staticTemp,
           gamma: gasType === 'monoatomico' ? 5/3 : 7/5
         };
 
@@ -652,6 +767,33 @@ export default function App() {
               {/* Isotérmico inputs */}
               {process === 'isotermico' && (
                 <>
+                  {/* Selector de Modo de Entrada */}
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
+                      VARIABLES DE ENTRADA
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setInputMode('volumen')}
+                        className={`process-btn ${inputMode === 'volumen' ? 'active' : ''}`}
+                        style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
+                        disabled={isSimulating}
+                      >
+                        Ingresar Volumen (Vi, Vf)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputMode('presion')}
+                        className={`process-btn ${inputMode === 'presion' ? 'active' : ''}`}
+                        style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
+                        disabled={isSimulating}
+                      >
+                        Ingresar Presión (Pi, Pf)
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <div className="label-container">
                       <label>Temperatura (T = cte)</label>
@@ -669,40 +811,82 @@ export default function App() {
                     </div>
                     {errors.Ti && <span className="validation-error">{errors.Ti}</span>}
                   </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Volumen Inicial (Vi)</label>
-                      <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Vi} 
-                        onChange={(e) => setVi(e.target.value)} 
-                        disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                    </div>
-                    {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
-                  </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Volumen Final (Vf)</label>
-                      <HelpTooltip text="Volumen final alcanzado por el gas." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Vf} 
-                        onChange={(e) => setVf(e.target.value)} 
-                        disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                    </div>
-                    {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
-                  </div>
+
+                  {inputMode === 'volumen' ? (
+                    <>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Volumen Inicial (Vi)</label>
+                          <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Vi} 
+                            onChange={(e) => setVi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                        </div>
+                        {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Volumen Final (Vf)</label>
+                          <HelpTooltip text="Volumen final alcanzado por el gas." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Vf} 
+                            onChange={(e) => setVf(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                        </div>
+                        {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Presión Inicial (Pi)</label>
+                          <HelpTooltip text="Presión del gas al inicio del proceso." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Pi} 
+                            onChange={(e) => setPi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                        </div>
+                        {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Presión Final (Pf)</label>
+                          <HelpTooltip text="Presión final del gas al final del proceso." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Pf} 
+                            onChange={(e) => setPf(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                        </div>
+                        {errors.Pf && <span className="validation-error">{errors.Pf}</span>}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -823,57 +1007,142 @@ export default function App() {
               {/* Adiabático inputs */}
               {process === 'adiabatico' && (
                 <>
+                  {/* Selector de Modo de Entrada */}
                   <div className="form-group">
-                    <div className="label-container">
-                      <label>Presión Inicial (Pi)</label>
-                      <HelpTooltip text="Presión al comienzo del proceso adiabático." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Pi} 
-                        onChange={(e) => setPi(e.target.value)} 
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
+                      VARIABLES DE ENTRADA
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setInputMode('volumen')}
+                        className={`process-btn ${inputMode === 'volumen' ? 'active' : ''}`}
+                        style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
                         disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
-                    </div>
-                    {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
-                  </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Volumen Inicial (Vi)</label>
-                      <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión adiabática." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Vi} 
-                        onChange={(e) => setVi(e.target.value)} 
+                      >
+                        Ingresar Volumen (Vi, Vf)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputMode('presion')}
+                        className={`process-btn ${inputMode === 'presion' ? 'active' : ''}`}
+                        style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
                         disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                      >
+                        Ingresar Presión (Pi, Pf)
+                      </button>
                     </div>
-                    {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
                   </div>
-                  <div className="form-group">
-                    <div className="label-container">
-                      <label>Volumen Final (Vf)</label>
-                      <HelpTooltip text="Volumen final tras el desplazamiento adiabático." />
-                    </div>
-                    <div className="input-container">
-                      <input 
-                        type="number" 
-                        value={Vf} 
-                        onChange={(e) => setVf(e.target.value)} 
-                        disabled={isSimulating}
-                        className="input-field" 
-                      />
-                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
-                    </div>
-                    {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
-                  </div>
+
+                  {inputMode === 'volumen' ? (
+                    <>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Presión Inicial (Pi)</label>
+                          <HelpTooltip text="Presión al comienzo del proceso adiabático." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Pi} 
+                            onChange={(e) => setPi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                        </div>
+                        {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Volumen Inicial (Vi)</label>
+                          <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión adiabática." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Vi} 
+                            onChange={(e) => setVi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                        </div>
+                        {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Volumen Final (Vf)</label>
+                          <HelpTooltip text="Volumen final tras el desplazamiento adiabático." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Vf} 
+                            onChange={(e) => setVf(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                        </div>
+                        {errors.Vf && <span className="validation-error">{errors.Vf}</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Volumen Inicial (Vi)</label>
+                          <HelpTooltip text="Volumen del gas al inicio del proceso adiabático." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Vi} 
+                            onChange={(e) => setVi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                        </div>
+                        {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Presión Inicial (Pi)</label>
+                          <HelpTooltip text="Presión al comienzo de la expansión o compresión adiabática." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Pi} 
+                            onChange={(e) => setPi(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                        </div>
+                        {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                      </div>
+                      <div className="form-group">
+                        <div className="label-container">
+                          <label>Presión Final (Pf)</label>
+                          <HelpTooltip text="Presión final tras el desplazamiento adiabático." />
+                        </div>
+                        <div className="input-container">
+                          <input 
+                            type="number" 
+                            value={Pf} 
+                            onChange={(e) => setPf(e.target.value)} 
+                            disabled={isSimulating}
+                            className="input-field" 
+                          />
+                          <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                        </div>
+                        {errors.Pf && <span className="validation-error">{errors.Pf}</span>}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -929,10 +1198,10 @@ export default function App() {
             <div className="card">
               <div className="card-body" style={{ padding: 0, height: '100%' }}>
                 <PistonAnimation 
-                  volume={isSimulating ? animVol : (results ? convertVolume.fromSI(results.Vf, unitV) : convertVolume.fromSI(convertVolume.toSI(parseFloat(Vi), unitV), unitV))}
+                  volume={isSimulating ? animVol : (results ? convertVolume.fromSI(results.Vf, unitV) : convertVolume.fromSI(staticVol, unitV))}
                   minVolume={convertVolume.fromSI(convertVolume.toSI(0.1, 'L'), unitV)}
                   maxVolume={convertVolume.fromSI(convertVolume.toSI(40, 'L'), unitV)}
-                  temperature={isSimulating ? animTemp : (results ? results.Tf : convertTemp.toSI(parseFloat(Ti), unitT))}
+                  temperature={isSimulating ? animTemp : (results ? results.Tf : staticTemp)}
                   minTemp={100}
                   maxTemp={800}
                   heatTransferred={results ? results.Q : 0}

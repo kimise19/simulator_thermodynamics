@@ -77,13 +77,20 @@ export function calculateSimulation(process, inputs) {
   switch (process) {
     case 'isotermico': {
       Ti = convertTemp.toSI(parseFloat(inputs.Ti), inputs.unitT);
-      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
-      Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
       Tf = Ti;
+      const inputMode = inputs.inputMode || 'volumen';
 
-      // Ideal gas law for pressures
-      Pi = (n * R * Ti) / Vi;
-      Pf = (n * R * Tf) / Vf;
+      if (inputMode === 'volumen') {
+        Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+        Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+        Pi = (n * R * Ti) / Vi;
+        Pf = (n * R * Tf) / Vf;
+      } else {
+        Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+        Pf = convertPressure.toSI(parseFloat(inputs.Pf), inputs.unitP);
+        Vi = (n * R * Ti) / Pi;
+        Vf = (n * R * Tf) / Pf;
+      }
 
       // Work done: w = n R T ln(Vf/Vi)
       W = n * R * Ti * Math.log(Vf / Vi);
@@ -97,13 +104,21 @@ export function calculateSimulation(process, inputs) {
 
       // Explanations & steps
       mathSteps = [
-        {
-          title: "1. Aplicación de la Ley de los Gases Ideales",
-          desc: "Calculamos las presiones inicial y final del sistema utilizando P = nRT/V.",
+        inputMode === 'presion' ? {
+          title: "1. Volumen Inicial (Vi)",
+          desc: "Calculamos el volumen inicial utilizando la ley de los gases ideales V = nRT/P.",
+          formula: `V_i = \\frac{n R T_i}{P_i} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Pi.toFixed(2)}} = ${Vi.toFixed(4)} \\text{ m}^3`
+        } : {
+          title: "1. Presión Inicial (Pi)",
+          desc: "Calculamos la presión inicial utilizando la ley de los gases ideales P = nRT/V.",
           formula: `P_i = \\frac{n R T_i}{V_i} = \\frac{${n} \\cdot 8.314 \\cdot ${Ti.toFixed(2)}}{${Vi.toFixed(4)}} = ${Pi.toFixed(2)} \\text{ Pa}`
         },
-        {
-          title: "2. Presión Final",
+        inputMode === 'presion' ? {
+          title: "2. Volumen Final (Vf)",
+          desc: "Al ser un proceso isotérmico, la temperatura no varía. Calculamos el volumen final del estado B.",
+          formula: `V_f = \\frac{n R T_f}{P_f} = \\frac{${n} \\cdot 8.314 \\cdot ${Tf.toFixed(2)}}{${Pf.toFixed(2)}} = ${Vf.toFixed(4)} \\text{ m}^3`
+        } : {
+          title: "2. Presión Final (Pf)",
           desc: "Al ser un proceso isotérmico, la temperatura no varía. Calculamos la presión final del estado B.",
           formula: `P_f = \\frac{n R T_f}{V_f} = \\frac{${n} \\cdot 8.314 \\cdot ${Tf.toFixed(2)}}{${Vf.toFixed(4)}} = ${Pf.toFixed(2)} \\text{ Pa}`
         },
@@ -286,12 +301,19 @@ export function calculateSimulation(process, inputs) {
     }
 
     case 'adiabatico': {
-      Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
-      Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
-      Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+      const inputMode = inputs.inputMode || 'volumen';
 
-      // Adiabatic equation: Pi * Vi^gamma = Pf * Vf^gamma => Pf = Pi * (Vi/Vf)^gamma
-      Pf = Pi * Math.pow(Vi / Vf, gamma);
+      if (inputMode === 'volumen') {
+        Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+        Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+        Vf = convertVolume.toSI(parseFloat(inputs.Vf), inputs.unitV);
+        Pf = Pi * Math.pow(Vi / Vf, gamma);
+      } else {
+        Pi = convertPressure.toSI(parseFloat(inputs.Pi), inputs.unitP);
+        Pf = convertPressure.toSI(parseFloat(inputs.Pf), inputs.unitP);
+        Vi = convertVolume.toSI(parseFloat(inputs.Vi), inputs.unitV);
+        Vf = Vi * Math.pow(Pi / Pf, 1 / gamma);
+      }
 
       // Temperatures
       Ti = (Pi * Vi) / (n * R);
@@ -310,7 +332,11 @@ export function calculateSimulation(process, inputs) {
       deltaH = n * Cp * (Tf - Ti);
 
       mathSteps = [
-        {
+        inputMode === 'presion' ? {
+          title: "1. Cálculo de Volumen Final (Vf)",
+          desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar V_f.",
+          formula: `V_f = V_i \\left(\\frac{P_i}{P_f}\\right)^{1/\\gamma} = ${Vi.toFixed(4)} \\cdot \\left(\\frac{${Pi.toFixed(0)}}{${Pf.toFixed(0)}}\\right)^{1/${gamma.toFixed(2)}} = ${Vf.toFixed(4)} \\text{ m}^3`
+        } : {
           title: "1. Cálculo de Presión Final (Pf)",
           desc: "Utilizamos la relación adiabática P_i * V_i^γ = P_f * V_f^γ para despejar P_f.",
           formula: `P_f = P_i \\left(\\frac{V_i}{V_f}\\right)^\\gamma = ${Pi.toFixed(0)} \\cdot \\left(\\frac{${Vi.toFixed(4)}}{${Vf.toFixed(4)}}\\right)^{${gamma.toFixed(2)}} = ${Pf.toFixed(2)} \\text{ Pa}`
