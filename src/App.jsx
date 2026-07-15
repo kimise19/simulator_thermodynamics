@@ -51,9 +51,9 @@ export default function App() {
   // Dynamic inputs based on selected process (independent parameters per process)
   const [processInputs, setProcessInputs] = useState({
     isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
-    isobarico: { Ti: '25', Pi: '100', Vf: '50' },
-    isocorico: { Ti: '25', Vi: '15', Pf: '300' },
-    adiabatico: { Ti: '25', Pi: '120', Vf: '40', Pf: '200', inputMode: 'volumen' }
+    isobarico: { Ti: '25', Pi: '100', Vi: '24.79', Vf: '50' },
+    isocorico: { Ti: '25', Vi: '15', Pi: '165.25', Pf: '300' },
+    adiabatico: { Ti: '25', Pi: '120', Vi: '20.66', Vf: '40', Pf: '200', inputMode: 'volumen' }
   });
 
   // Derived inputs for current process
@@ -65,12 +65,107 @@ export default function App() {
   const Vf = currentInputs.Vf || '';
   const inputMode = currentInputs.inputMode || 'volumen';
 
+  // Helper to synchronize physical variables based on Pi * Vi = n * R * Ti
+  const syncPhysicalInputs = (updatedField, value, currentProcess, prevInputs) => {
+    const nVal = parseFloat(n) || 1;
+    const R_const = 8.314;
+    let next = { ...prevInputs[currentProcess], [updatedField]: value };
+
+    const getSI = (valStr, type, unit) => {
+      const val = parseFloat(valStr);
+      if (isNaN(val) || val <= 0) return null;
+      if (type === 'P') return convertPressure.toSI(val, unit);
+      if (type === 'V') return convertVolume.toSI(val, unit);
+      if (type === 'T') {
+        const siVal = convertTemp.toSI(val, unit);
+        return siVal > 0 ? siVal : null;
+      }
+      return null;
+    };
+
+    try {
+      if (currentProcess === 'isobarico') {
+        if (updatedField === 'Ti') {
+          const TiSI = getSI(value, 'T', unitT);
+          const PiSI = getSI(next.Pi, 'P', unitP);
+          if (TiSI !== null && PiSI !== null) {
+            const ViSI = (nVal * R_const * TiSI) / PiSI;
+            next.Vi = convertVolume.fromSI(ViSI, unitV).toFixed(2);
+          }
+        } else if (updatedField === 'Pi') {
+          const TiSI = getSI(next.Ti, 'T', unitT);
+          const PiSI = getSI(value, 'P', unitP);
+          if (TiSI !== null && PiSI !== null) {
+            const ViSI = (nVal * R_const * TiSI) / PiSI;
+            next.Vi = convertVolume.fromSI(ViSI, unitV).toFixed(2);
+          }
+        } else if (updatedField === 'Vi') {
+          const ViSI = getSI(value, 'V', unitV);
+          const PiSI = getSI(next.Pi, 'P', unitP);
+          if (ViSI !== null && PiSI !== null) {
+            const TiSI = (PiSI * ViSI) / (nVal * R_const);
+            next.Ti = convertTemp.fromSI(TiSI, unitT).toFixed(1);
+          }
+        }
+      } else if (currentProcess === 'isocorico') {
+        if (updatedField === 'Ti') {
+          const TiSI = getSI(value, 'T', unitT);
+          const ViSI = getSI(next.Vi, 'V', unitV);
+          if (TiSI !== null && ViSI !== null) {
+            const PiSI = (nVal * R_const * TiSI) / ViSI;
+            next.Pi = convertPressure.fromSI(PiSI, unitP).toFixed(1);
+          }
+        } else if (updatedField === 'Vi') {
+          const TiSI = getSI(next.Ti, 'T', unitT);
+          const ViSI = getSI(value, 'V', unitV);
+          if (TiSI !== null && ViSI !== null) {
+            const PiSI = (nVal * R_const * TiSI) / ViSI;
+            next.Pi = convertPressure.fromSI(PiSI, unitP).toFixed(1);
+          }
+        } else if (updatedField === 'Pi') {
+          const PiSI = getSI(value, 'P', unitP);
+          const ViSI = getSI(next.Vi, 'V', unitV);
+          if (PiSI !== null && ViSI !== null) {
+            const TiSI = (PiSI * ViSI) / (nVal * R_const);
+            next.Ti = convertTemp.fromSI(TiSI, unitT).toFixed(1);
+          }
+        }
+      } else if (currentProcess === 'adiabatico') {
+        if (updatedField === 'Ti') {
+          const TiSI = getSI(value, 'T', unitT);
+          const PiSI = getSI(next.Pi, 'P', unitP);
+          if (TiSI !== null && PiSI !== null) {
+            const ViSI = (nVal * R_const * TiSI) / PiSI;
+            next.Vi = convertVolume.fromSI(ViSI, unitV).toFixed(2);
+          }
+        } else if (updatedField === 'Pi') {
+          const TiSI = getSI(next.Ti, 'T', unitT);
+          const PiSI = getSI(value, 'P', unitP);
+          if (TiSI !== null && PiSI !== null) {
+            const ViSI = (nVal * R_const * TiSI) / PiSI;
+            next.Vi = convertVolume.fromSI(ViSI, unitV).toFixed(2);
+          }
+        } else if (updatedField === 'Vi') {
+          const ViSI = getSI(value, 'V', unitV);
+          const PiSI = getSI(next.Pi, 'P', unitP);
+          if (ViSI !== null && PiSI !== null) {
+            const TiSI = (PiSI * ViSI) / (nVal * R_const);
+            next.Ti = convertTemp.fromSI(TiSI, unitT).toFixed(1);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Hot-sync inputs error:", e);
+    }
+    return { ...prevInputs, [currentProcess]: next };
+  };
+
   // Custom setters for current process
-  const setTi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Ti: val } }));
-  const setPi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Pi: val } }));
-  const setPf = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Pf: val } }));
-  const setVi = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Vi: val } }));
-  const setVf = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], Vf: val } }));
+  const setTi = (val) => setProcessInputs(prev => syncPhysicalInputs('Ti', val, process, prev));
+  const setPi = (val) => setProcessInputs(prev => syncPhysicalInputs('Pi', val, process, prev));
+  const setPf = (val) => setProcessInputs(prev => syncPhysicalInputs('Pf', val, process, prev));
+  const setVi = (val) => setProcessInputs(prev => syncPhysicalInputs('Vi', val, process, prev));
+  const setVf = (val) => setProcessInputs(prev => syncPhysicalInputs('Vf', val, process, prev));
   const setInputMode = (val) => setProcessInputs(prev => ({ ...prev, [process]: { ...prev[process], inputMode: val } }));
 
   // Unit selections
@@ -155,39 +250,48 @@ export default function App() {
     if (process === 'isobarico') {
       const TiVal = parseFloat(Ti);
       const PiVal = parseFloat(Pi);
+      const ViVal = parseFloat(Vi);
       const VfVal = parseFloat(Vf);
 
       if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
         newErrors.Ti = "Temperatura no válida (> 0 K)";
       }
       if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+      if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
       if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
+      if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
     }
 
     if (process === 'isocorico') {
       const TiVal = parseFloat(Ti);
       const ViVal = parseFloat(Vi);
+      const PiVal = parseFloat(Pi);
       const PfVal = parseFloat(Pf);
 
       if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
         newErrors.Ti = "Temperatura no válida (> 0 K)";
       }
       if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
+      if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
       if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
+      if (PiVal === PfVal) newErrors.Pf = "Presión final debe diferir de la inicial";
     }
 
     if (process === 'adiabatico') {
       const TiVal = parseFloat(Ti);
       const PiVal = parseFloat(Pi);
+      const ViVal = parseFloat(Vi);
 
       if (isNaN(TiVal) || (unitT === 'C' && TiVal < -273.15) || (unitT === 'K' && TiVal <= 0)) {
         newErrors.Ti = "Temperatura no válida (> 0 K)";
       }
       if (isNaN(PiVal) || PiVal <= 0) newErrors.Pi = "Presión debe ser > 0";
+      if (isNaN(ViVal) || ViVal <= 0) newErrors.Vi = "Volumen debe ser > 0";
 
       if (inputMode === 'volumen') {
         const VfVal = parseFloat(Vf);
         if (isNaN(VfVal) || VfVal <= 0) newErrors.Vf = "Volumen debe ser > 0";
+        if (ViVal === VfVal) newErrors.Vf = "Volumen final debe diferir del inicial";
       } else {
         const PfVal = parseFloat(Pf);
         if (isNaN(PfVal) || PfVal <= 0) newErrors.Pf = "Presión debe ser > 0";
@@ -295,9 +399,9 @@ export default function App() {
     // Reset inputs of the active process to defaults
     const defaults = {
       isotermico: { Ti: '25', Vi: '10', Vf: '20', Pi: '100', Pf: '200', inputMode: 'volumen' },
-      isobarico: { Ti: '25', Pi: '100', Vf: '50' },
-      isocorico: { Ti: '25', Vi: '15', Pf: '300' },
-      adiabatico: { Ti: '25', Pi: '120', Vf: '40', Pf: '200', inputMode: 'volumen' }
+      isobarico: { Ti: '25', Pi: '100', Vi: '24.79', Vf: '50' },
+      isocorico: { Ti: '25', Vi: '15', Pi: '165.25', Pf: '300' },
+      adiabatico: { Ti: '25', Pi: '120', Vi: '20.66', Vf: '40', Pf: '200', inputMode: 'volumen' }
     };
 
     setProcessInputs(prev => ({
@@ -924,6 +1028,23 @@ export default function App() {
                   </div>
                   <div className="form-group">
                     <div className="label-container">
+                      <label>Volumen Inicial (Vi)</label>
+                      <HelpTooltip text="Volumen al comienzo de la expansión/compresión." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Vi} 
+                        onChange={(e) => setVi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                    </div>
+                    {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                  </div>
+                  <div className="form-group">
+                    <div className="label-container">
                       <label>Volumen Final (Vf)</label>
                       <HelpTooltip text="Volumen de destino del gas." />
                     </div>
@@ -978,6 +1099,23 @@ export default function App() {
                       <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
                     </div>
                     {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
+                  </div>
+                  <div className="form-group">
+                    <div className="label-container">
+                      <label>Presión Inicial (Pi)</label>
+                      <HelpTooltip text="Presión del gas antes del calentamiento/enfriamiento." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Pi} 
+                        onChange={(e) => setPi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
+                    </div>
+                    {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
                   </div>
                   <div className="form-group">
                     <div className="label-container">
@@ -1063,6 +1201,24 @@ export default function App() {
                       <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitP}</span>
                     </div>
                     {errors.Pi && <span className="validation-error">{errors.Pi}</span>}
+                  </div>
+
+                  <div className="form-group">
+                    <div className="label-container">
+                      <label>Volumen Inicial (Vi)</label>
+                      <HelpTooltip text="Volumen del gas al inicio de la expansión o compresión adiabática." />
+                    </div>
+                    <div className="input-container">
+                      <input 
+                        type="number" 
+                        value={Vi} 
+                        onChange={(e) => setVi(e.target.value)} 
+                        disabled={isSimulating}
+                        className="input-field" 
+                      />
+                      <span className="unit-select" style={{ display: 'flex', alignItems: 'center' }}>{unitV}</span>
+                    </div>
+                    {errors.Vi && <span className="validation-error">{errors.Vi}</span>}
                   </div>
 
                   {inputMode === 'volumen' ? (
